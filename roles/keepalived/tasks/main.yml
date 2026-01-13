@@ -1,0 +1,32 @@
+---
+- name: Install Keepalived
+  dnf:
+    name: keepalived
+    state: present
+
+- name: Allow binding to non-local IP
+  sysctl:
+    name: net.ipv4.ip_nonlocal_bind
+    value: '1'
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: Configure Keepalived
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    mode: '0644'
+
+- name: Allow VRRP protocol in Firewalld
+  firewalld:
+    rich_rule: 'rule protocol value="vrrp" accept'
+    permanent: yes
+    immediate: yes
+    state: enabled
+
+- name: Enable and Restart Keepalived
+  service:
+    name: keepalived
+    state: restarted
+    enabled: yes

@@ -5,10 +5,11 @@
 
 # 1단계: 모니터링 서버에 Prometheus + Grafana 스택 배포
 - name: 모니터링 서버 설정 (Prometheus + Grafana)
-  hosts: Monitoring
+  hosts: Monitoring_Servers
   become: yes
   roles:
     - monitoring
+    - keepalived
   tags:
     - monitoring
     - prometheus
@@ -242,23 +243,23 @@
 
     # 3. 포트 포워딩 규칙 (Port Forwarding)
     # 3000(Grafana), 9090(Prometheus), 9093(Alertmanager)
-    - name: Grafana 포트 포워딩 (172.16.6.61:3000 -> 10.2.2.50:3000)
+    - name: Grafana 포트 포워딩 (172.16.6.61:3000 -> 10.2.2.99:3000)
       firewalld:
-        rich_rule: 'rule family="ipv4" forward-port port="3000" protocol="tcp" to-port="3000" to-addr="10.2.2.50"'
+        rich_rule: 'rule family="ipv4" forward-port port="3000" protocol="tcp" to-port="3000" to-addr="10.2.2.99"'
         permanent: yes
         immediate: yes
         state: enabled
 
-    - name: Prometheus 포트 포워딩 (172.16.6.61:9090 -> 10.2.2.50:9090)
+    - name: Prometheus 포트 포워딩 (172.16.6.61:9090 -> 10.2.2.99:9090)
       firewalld:
-        rich_rule: 'rule family="ipv4" forward-port port="9090" protocol="tcp" to-port="9090" to-addr="10.2.2.50"'
+        rich_rule: 'rule family="ipv4" forward-port port="9090" protocol="tcp" to-port="9090" to-addr="10.2.2.99"'
         permanent: yes
         immediate: yes
         state: enabled
 
-    - name: Alertmanager 포트 포워딩 (172.16.6.61:9093 -> 10.2.2.50:9093)
+    - name: Alertmanager 포트 포워딩 (172.16.6.61:9093 -> 10.2.2.99:9093)
       firewalld:
-        rich_rule: 'rule family="ipv4" forward-port port="9093" protocol="tcp" to-port="9093" to-addr="10.2.2.50"'
+        rich_rule: 'rule family="ipv4" forward-port port="9093" protocol="tcp" to-port="9093" to-addr="10.2.2.99"'
         permanent: yes
         immediate: yes
         state: enabled
