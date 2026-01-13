@@ -30,7 +30,8 @@
 | | | `etcd_3` | `10.2.3.22` | Etcd Cluster | 키-값 저장소 |
 | | | `Storage` | `10.2.2.30` | NFS Server | 공유 스토리지 |
 | **PC5** | **Operations** | `CI-OPS` | `10.2.2.40` | Jenkins + Gitea | CI/CD 서버 |
-| | | `Monitoring` | `10.2.2.50` | Prometheus + Grafana | 모니터링 서버 |
+| | | `Monitoring` | `10.2.2.50` | Prometheus + Grafana | 모니터링 Master |
+| | | `Monitoring_Backup` | `10.2.2.51` | Prometheus + Grafana | 모니터링 Standby |
 | **PC6** | **K8s Workers** | `K8S-WorkerNode4` | `10.2.2.8` | Worker Node | 워커 그룹 B |
 | | | `K8S-WorkerNode5` | `10.2.2.9` | Worker Node | 워커 그룹 B |
 | | | `K8S-WorkerNode6` | `10.2.2.10` | Worker Node | 워커 그룹 B |
@@ -155,11 +156,12 @@ ansible-playbook -i inventory.ini playbooks/03_deploy_monitoring.yml
 
 ## 🔍 6. 모니터링 시스템 (Monitoring)
 
-### 📊 구성 요소
-- **Prometheus** (`10.2.2.50:9090`): 메트릭 수집 및 저장
-- **Grafana** (`10.2.2.50:3000`): 시각화 대시보드
-- **Alertmanager** (`10.2.2.50:9093`): 알림 관리
-- **Node Exporter** (모든 서버 `:9100`): 시스템 메트릭 수집
+### 📊 구성 요소 (HA 구성)
+- **VIP (Virtual IP)** (`10.2.2.99`): 고가용성 접속 주소
+- **Master** (`10.2.2.50`): Prometheus + Grafana (Active)
+- **Backup** (`10.2.2.51`): Prometheus + Grafana (Standby)
+- **Keepalived**: VIP 관리 및 Failover 담당
+- **Node Exporter**: 모든 서버 메트릭 수집
 
 ### 🚨 알림 시스템
 - **이메일 알림**: Alertmanager → Postfix → `/var/mail/root`
@@ -179,7 +181,7 @@ http://172.16.6.61:3000
 ```
 
 ### 🌐 외부 접속
-SECURE 서버를 통한 포트 포워딩:
+SECURE 서버를 통한 포트 포워딩 (**자동으로 VIP 10.2.2.99 연결**):
 - **Grafana**: `http://172.16.6.61:3000`
 - **Prometheus**: `http://172.16.6.61:9090`
 - **Alertmanager**: `http://172.16.6.61:9093`
@@ -195,6 +197,9 @@ SECURE 서버를 통한 포트 포워딩:
   - Trivy 보안 스캔 포함
   - ChartMuseum (Helm Chart 저장소) 포함
   - 기본 계정: `admin` / `admin123`
+- **ArgoCD** (`k8s cluster`): GitOps Continuous Delivery
+  - Helm Chart 자동 동기화 (`myapp-helm` repo)
+  - Prune/Self-Heal 활성화됨
 
 ### 🔄 파이프라인 구조
 
@@ -357,15 +362,18 @@ Ansible/
 5. ✅ Docker Registry (Harbor)
 6. ✅ 샘플 애플리케이션 CI/CD 파이프라인
 
-### 🚀 향후 개선 사항 (Phase 3)
-1. **GitOps 도입**: ArgoCD 설치 및 자동 동기화
-2. **Helm Chart 작성**: 애플리케이션 패키징 및 버전 관리
-3. **모니터링 대시보드 커스터마이징**: Grafana 대시보드 추가 생성
-4. **보안 강화**: WAF 규칙 추가, SSL/TLS 인증서 적용
+### 🚀 완료된 작업 (Phase 3)
+1. ✅ **GitOps 도입**: ArgoCD 설치 및 자동 동기화
+2. ✅ **Helm Chart 작성**: `myapp` Helm Chart 패키징 및 버전 관리
+3. **모니터링 고가용성**: Master/Backup HA 구성 완료
+
+### 🔜 향후 계획 (Phase 4)
+1. **보안 강화**: WAF 규칙 추가, SSL/TLS 인증서 적용
+2. **로그 통합**: ELK Stack 또는 Loki 도입 고려
 
 ---
 
-**📅 Last Updated**: 2026-01-12
+**📅 Last Updated**: 2026-01-13
 **👤 Maintainer**: Antigravity Team  
 **📖 License**: Internal Use Only
 

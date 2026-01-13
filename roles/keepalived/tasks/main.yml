@@ -18,6 +18,12 @@
     dest: /etc/keepalived/keepalived.conf
     mode: '0644'
 
+- name: Ensure Firewalld is started
+  service:
+    name: firewalld
+    state: started
+    enabled: yes
+
 - name: Allow VRRP protocol in Firewalld
   firewalld:
     rich_rule: 'rule protocol value="vrrp" accept'
