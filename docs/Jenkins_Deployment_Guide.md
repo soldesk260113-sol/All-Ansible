@@ -59,7 +59,7 @@ Jenkins 컨테이너가 다른 서버들에 접속하여 Ansible을 실행하려
 
 ```bash
 # Jenkins 컨테이너의 키를 모든 서버에 배포
-ansible-playbook -i inventory.ini playbooks/99_setup_jenkins_ssh.yml
+ansible-playbook -i inventory.ini playbooks/05_configure_jenkins_ssh.yml
 ```
 
 ---
