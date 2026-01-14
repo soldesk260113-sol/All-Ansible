@@ -8,8 +8,9 @@
       changed_when: false
 
 - name: Distribute SSH Key
-  hosts: K8S_Cluster
+  hosts: all:!localhost
   become: yes
+  ignore_unreachable: yes
   tasks:
     - name: Add Jenkins SSH Key to authorized_keys
       authorized_key:
