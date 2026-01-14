@@ -1,4 +1,6 @@
----
+# ═══════════════════════════════════════════════════════════════════════════
+# Playbook 99: Reset ArgoCD Applications - ArgoCD 앱 초기화
+# ═══════════════════════════════════════════════════════════════════════════
 - name: Reset ArgoCD Applications
   hosts: K8S_Primary_Master
   become: yes

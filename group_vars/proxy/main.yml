@@ -1,3 +1,7 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# group_vars/proxy/main.yml - DB Proxy 설정
+# ═══════════════════════════════════════════════════════════════════════════
+
 # vault 자동 로드용 경로
 proxy_vault_vars_file: "{{ playbook_dir }}/../group_vars/proxy/vault.yml"
 
@@ -29,20 +33,18 @@ haproxy_listen_port: 5432
 patroni_rest_port: 8008
 patroni_master_path: "/master"
 
-# DB 노드 목록 (문서에 IP 없음 → 반드시 채우기. 비면 실패)
-db_nodes: []
-# 예시(반드시 실제 값으로 채우기):
+# DB 노드 목록 (HAProxy Backend 설정용)
+# 설명: HAProxy가 헬스체크하고 라우팅할 실제 DB 서버들의 정보
 db_nodes:
    - name: "DB-Active"
-     host: "10.2.3.11"
+     host: "10.2.3.2"
      pg_port: 5432
      patroni_port: 8008
    - name: "DB-Standby"
-     host: "10.2.3.12"
+     host: "10.2.3.3"
      pg_port: 5432
      patroni_port: 8008
    - name: "DB-Backup"
-     host: "10.2.3.13"
+     host: "10.2.3.4"
      pg_port: 5432
      patroni_port: 8008
-

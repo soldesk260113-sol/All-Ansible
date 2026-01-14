@@ -1,16 +1,28 @@
----
+# ═══════════════════════════════════════════════════════════════════════════
+# Playbook 08: Deploy Security Tier - 보안 계층 구축
+# ═══════════════════════════════════════════════════════════════════════════
+
+# 1. SECURE Gateway 설정
+# - 역할: 외부망과 내부망 사이의 라우팅 및 방화벽 정책 적용
+# - 기능: IP Masquerading(NAT), Port Forwarding(외부 -> K8s)
 - name: Configure SECURE Gateway (Firewall & Routing)
   hosts: SECURE
   become: true
   roles:
     - secure
 
+# 2. WAF (Web Application Firewall) 설정
+# - 역할: 웹 애플리케이션 보안
+# - 기능: SQL Injection, XSS 등 웹 공격 탐지 및 차단 (ModSecurity)
 - name: Configure WAF (Web Application Firewall)
   hosts: WAF
   become: true
   roles:
     - waf
 
+# 3. 내부 DNS 서버 설정
+# - 역할: 사내 도메인(antigravity.local) 이름 풀이
+# - 기능: Bind9 DNS 서버, 호스트명 기반 내부 통신 지원
 - name: Configure Internal DNS
   hosts: DNS
   become: true

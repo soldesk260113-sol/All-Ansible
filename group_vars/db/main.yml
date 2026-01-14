@@ -113,4 +113,11 @@ backup_full_schedule: "daily"     # cron/systemd-timer로 확장 가능
 retention_full: 7
 backup_enable: false
 
+# pgBackRest Primary DB 설정 (Backup Role에서 사용)
+# pg1-host: 리더(Active) DB IP (백업을 수행할 대상)
+pg_primary_host: "10.2.3.2"
+pg_primary_port: 5432
+pg_primary_data_path: "/var/lib/pgsql/patroni" # Patroni 사용 시 데이터 경로 주의
+pg_backup_db_user: "postgres" # 백업 수행 계정
+
   # Vault 로딩(플레이에서 include_vars로 읽는 구조라면 이 변수들은 아래처럼 매핑해서 씀)

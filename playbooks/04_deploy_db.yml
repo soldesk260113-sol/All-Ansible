@@ -1,4 +1,10 @@
----
+# ═══════════════════════════════════════════════════════════════════════════
+# Playbook 04: Deploy Database Tier - 데이터베이스 및 스토리지 계층 구축
+# ═══════════════════════════════════════════════════════════════════════════
+
+# 1. DB Proxy (HAProxy + Keepalived) 구축
+# - 역할: 애플리케이션의 DB 접속 요청을 로드밸런싱하고, Active DB로 라우팅
+# - 고가용성: Keepalived VIP를 통해 Proxy 서버 장애 시 자동 절체
 - name: Build Proxy (HA / LB / Router)
   hosts: DB_Proxies
   gather_facts: true
@@ -16,6 +22,9 @@
   roles:
     - proxy
 
+# 2. Etcd Cluster 구축
+# - 역할: Patroni가 사용하는 분산 Key-Value 저장소
+# - 기능: DB 리더 선출(Leader Election) 및 클러스터 상태 정보 저장
 - name: Build DB (etcd)
   hosts: ETCD_Cluster
   gather_facts: true
@@ -37,6 +46,10 @@
       tags: ['etcd']
 
 
+# 3. PostgreSQL Cluster (Patroni) 구축
+# - 역할: 실제 데이터가 저장되는 RDBMS 클러스터
+# - 구성: Active(Read/Write) 1대 + Standby(Read-Only) 1대 + Backup 1대
+# - serial: 1 -> 한 번에 한 대씩 순차적으로 작업하여 서비스 중단 최소화
 - name: Build DB (PostgreSQL / Patroni / etcd / Backup)
   hosts: DB_Servers
   serial: 1
@@ -55,6 +68,8 @@
   roles:
     - db
 
+# 4. Backup & Storage 설정
+# - 역할: pgBackRest를 이용한 DB 백업 및 NFS 스토리지 연동
 - hosts: DB-Backup, Storage
   become: true
   pre_tasks:
