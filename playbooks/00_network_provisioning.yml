@@ -39,8 +39,8 @@
       shell: "nmcli -t -f DEVICE,TYPE device | grep 'ethernet' | cut -d: -f1"
       register: detected_nics
       changed_when: false
-      check_mode: no
       ignore_errors: yes
+      when: not ansible_check_mode
 
     - name: 감지된 인터페이스로 변수 갱신 (NIC 1 - 주 인터페이스)
       set_fact:
