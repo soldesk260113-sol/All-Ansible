@@ -18,7 +18,7 @@ dns_zones:
     records:
       - { name: "secure", ip: "10.2.1.1" }
       - { name: "waf",    ip: "10.2.1.2" }
-      - { name: "dns",    ip: "10.2.1.3" }
+      - { name: "dns",    ip: "10.2.2.60" }
 
   # -----------------------------------------
   # Kubernetes Cluster (PC2 / PC3 / PC6)

@@ -180,7 +180,7 @@
       ignore_errors: yes
 
 # [PC1/DNS] 비대칭 라우팅(Asymmetric Routing) 문제 해결
-# 설명: Monitoring(10.2.2.50) -> DNS(10.2.1.3) 응답 시, WAF(10.2.1.2)를 거치지 않으면 패킷이 유실됨.
+# 설명: Monitoring(10.2.2.50) -> DNS(10.2.2.60) 응답 시, WAF(10.2.1.2)를 거치지 않으면 패킷이 유실됨.
 #       따라서 강제로 WAF를 거쳐가도록 정적 라우팅을 추가함.
 - name: DNS 서버 라우팅 설정 (비대칭 라우팅 해결)
   hosts: DNS

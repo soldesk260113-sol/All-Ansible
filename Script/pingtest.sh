@@ -14,7 +14,6 @@ SERVERS=(
     # [PC1] Gateway / WAF / DNS
     "10.2.1.1"  # FW (Internal Gateway) - 172.16.6.61
     "10.2.1.2"  # WAF
-    "10.2.1.3"  # DNS
 
     # [PC2] K8S Control Plane
     "10.2.2.2"  # CP1
@@ -46,6 +45,7 @@ SERVERS=(
     "10.2.2.40" # Ansible/CICD
     "10.2.2.50" # Monitoring1
     "10.2.2.51" # Monitoring2
+    "10.2.2.60"  # DNS
 )
 
 echo "========================================================"
