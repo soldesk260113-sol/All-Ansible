@@ -15,7 +15,7 @@
 
 - name: Ensure controller files dir exists (run once)
   ansible.builtin.file:
-    path: "{{ playbook_dir }}/files"
+    path: "{{ inventory_dir }}/files"
     state: directory
     mode: "0755"
   delegate_to: localhost
@@ -24,7 +24,7 @@
 - name: Set etcd download URL (run once)
   ansible.builtin.set_fact:
     _etcd_archive_name: "etcd-{{ etcd_version }}-linux-amd64.tar.gz"
-    _etcd_archive_local: "{{ playbook_dir }}/files/etcd-{{ etcd_version }}-linux-amd64.tar.gz"
+    _etcd_archive_local: "{{ inventory_dir }}/files/etcd-{{ etcd_version }}-linux-amd64.tar.gz"
     _etcd_download_url: "{{ etcd_download_url | default('https://storage.googleapis.com/etcd/' ~ etcd_version ~ '/etcd-' ~ etcd_version ~ '-linux-amd64.tar.gz') }}"
   delegate_to: localhost
   run_once: true
