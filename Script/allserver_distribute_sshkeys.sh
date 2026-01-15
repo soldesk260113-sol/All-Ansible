@@ -82,12 +82,16 @@ for ip in "${SERVERS[@]}"; do
     host_entry_root="root@$ip"
     host_entry_ansible="ansible@$ip"
     
-    # 1. Root Key Distribution
-    sshpass -p "$PASSWORD" ssh-copy-id "${SSH_OPTS[@]}" -i ~/.ssh/id_rsa.pub "$host_entry_root"
+    # [Fix] Pre-read key content to avoid passing file paths to ssh-copy-id (which fails on read-only FS)
+    PUB_KEY_CONTENT=$(cat ~/.ssh/id_rsa.pub)
+
+    # 1. Root Key Distribution (Direct SSH)
+    # Check if key exists in authorized_keys, if not append it.
+    sshpass -p "$PASSWORD" ssh "${SSH_OPTS[@]}" "$host_entry_root" "mkdir -p ~/.ssh && chmod 700 ~/.ssh && grep -qF \"$PUB_KEY_CONTENT\" ~/.ssh/authorized_keys 2>/dev/null || echo \"$PUB_KEY_CONTENT\" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
     res_root=$?
 
-    # 2. Ansible User Key Distribution
-    sshpass -p "$PASSWORD" ssh-copy-id "${SSH_OPTS[@]}" -i ~/.ssh/id_rsa.pub "$host_entry_ansible"
+    # 2. Ansible User Key Distribution (Direct SSH)
+    sshpass -p "$PASSWORD" ssh "${SSH_OPTS[@]}" "$host_entry_ansible" "mkdir -p ~/.ssh && chmod 700 ~/.ssh && grep -qF \"$PUB_KEY_CONTENT\" ~/.ssh/authorized_keys 2>/dev/null || echo \"$PUB_KEY_CONTENT\" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
     res_ansible=$?
     
     # 실행 결과 확인
