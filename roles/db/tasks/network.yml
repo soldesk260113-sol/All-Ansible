@@ -8,11 +8,12 @@
 
 - name: Get active connection name for first ens* device
   ansible.builtin.shell: |
-    nmcli -t -f NAME,DEVICE con show --active | awk -F: '$2 ~ /^ens/ {print $1; exit}'
+    nmcli -t -f TYPE,NAME con show --active | awk -F: '$1 == "802-3-ethernet" {print $2; exit}'
   args:
     executable: /bin/bash
   register: nmcli_active_con
   changed_when: false
+  check_mode: no
 
 - name: Fail if active connection name not found
   ansible.builtin.fail:
