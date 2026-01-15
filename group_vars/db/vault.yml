@@ -4,3 +4,5 @@ pg_superpass: "postgres_password_123"
 
 replication_user: "replicator"
 replication_pass: "replicator_password_123"
+
+pg_backup_db_password: "postgres_password_123"
