@@ -79,14 +79,20 @@ for ip in "${SERVERS[@]}"; do
         # ProxyCommand 자체를 하나의 인자로 정확히 전달
         SSH_OPTS+=("-o" "ProxyCommand=ssh -o StrictHostKeyChecking=no -W %h:%p -q root@10.2.2.20")
     fi
-    host_entry="root@$ip"
+    host_entry_root="root@$ip"
+    host_entry_ansible="ansible@$ip"
     
-    # sshpass로 키 배포 ("${SSH_OPTS[@]}" 로 확장해야 띄어쓰기 포함된 인자가 깨지지 않음)
-    sshpass -p "$PASSWORD" ssh-copy-id "${SSH_OPTS[@]}" -i ~/.ssh/id_rsa.pub "$host_entry" &> /dev/null
+    # 1. Root Key Distribution
+    sshpass -p "$PASSWORD" ssh-copy-id "${SSH_OPTS[@]}" -i ~/.ssh/id_rsa.pub "$host_entry_root" &> /dev/null
+    res_root=$?
+
+    # 2. Ansible User Key Distribution
+    sshpass -p "$PASSWORD" ssh-copy-id "${SSH_OPTS[@]}" -i ~/.ssh/id_rsa.pub "$host_entry_ansible" &> /dev/null
+    res_ansible=$?
     
-    # 실행 결과 확인 ($?가 0이면 성공, 그 외는 실패)
-    if [ $? -eq 0 ]; then
-        echo -e "✅ [성공] $ip : 키 배포 완료"
+    # 실행 결과 확인
+    if [ $res_root -eq 0 ] || [ $res_ansible -eq 0 ]; then
+        echo -e "✅ [성공] $ip : 키 배포 완료 (Root: $res_root, Ansible: $res_ansible)"
     else
         echo -e "❌ [실패] $ip : 접속 불가 (Timeout 또는 인증 실패)"
     fi
