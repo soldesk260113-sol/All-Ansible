@@ -62,6 +62,7 @@
       async: 30
       poll: 5
       ignore_errors: yes
+      when: not ansible_check_mode
       
     - name: Check if Node Exporter binary exists
       stat:
