@@ -83,11 +83,11 @@ for ip in "${SERVERS[@]}"; do
     host_entry_ansible="ansible@$ip"
     
     # 1. Root Key Distribution
-    sshpass -p "$PASSWORD" ssh-copy-id "${SSH_OPTS[@]}" -i ~/.ssh/id_rsa.pub "$host_entry_root" &> /dev/null
+    sshpass -p "$PASSWORD" ssh-copy-id "${SSH_OPTS[@]}" -i ~/.ssh/id_rsa.pub "$host_entry_root"
     res_root=$?
 
     # 2. Ansible User Key Distribution
-    sshpass -p "$PASSWORD" ssh-copy-id "${SSH_OPTS[@]}" -i ~/.ssh/id_rsa.pub "$host_entry_ansible" &> /dev/null
+    sshpass -p "$PASSWORD" ssh-copy-id "${SSH_OPTS[@]}" -i ~/.ssh/id_rsa.pub "$host_entry_ansible"
     res_ansible=$?
     
     # 실행 결과 확인
