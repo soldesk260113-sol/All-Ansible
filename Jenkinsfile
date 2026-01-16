@@ -19,6 +19,19 @@ pipeline {
             }
         }
 
+        stage('Pre-flight Check & Heal') {
+            steps {
+                script {
+                    echo '🔍 SSH 연결 상태 점검 및 자동 복구 시도...'
+                    sh '''
+                        chmod +x Script/check_ssh_healing.sh
+                        chmod +x Script/jenkins_distribute_ssh_ansible.sh
+                        ./Script/check_ssh_healing.sh
+                    '''
+                }
+            }
+        }
+
         stage('Dry Run (Simulation)') {
             steps {
                 script {

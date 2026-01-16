@@ -17,43 +17,49 @@ JENKINS_CONTAINER="jenkins"
 PASSWORD="ansible"  # 서버들의 ansible 사용자 비밀번호
 PROXY_HOST="10.2.2.20"  # DB-Proxy1 (10.2.3.x 서브넷 접속용)
 
-# inventory.ini에서 추출한 모든 서버 IP 목록
-SERVERS=(
-    # [PC1] Security Tier
-    "172.16.6.61"   # SECURE
-    "10.2.1.2"      # WAF
-    
-    # [PC2] K8S Control Plane
-    "10.2.2.2"      # K8S-ControlPlane1
-    "10.2.2.3"      # K8S-ControlPlane2
-    "10.2.2.4"      # K8S-ControlPlane3
-    
-    # [PC3] K8S Worker Nodes (Set A)
-    "10.2.2.5"      # K8S-WorkerNode1
-    "10.2.2.6"      # K8S-WorkerNode2
-    "10.2.2.7"      # K8S-WorkerNode3
-    
-    # [PC6] K8S Worker Nodes (Set B)
-    "10.2.2.8"      # K8S-WorkerNode4
-    "10.2.2.9"      # K8S-WorkerNode5
-    "10.2.2.10"     # K8S-WorkerNode6
-    
-    # [PC4] DB & Storage
-    "10.2.2.20"     # DB-Proxy1
-    "10.2.2.21"     # DB-Proxy2
-    "10.2.3.2"      # DB-Active (via Proxy)
-    "10.2.3.3"      # DB-Standby (via Proxy)
-    "10.2.3.4"      # DB-Backup (via Proxy)
-    "10.2.3.20"     # etcd_1 (via Proxy)
-    "10.2.3.21"     # etcd_2 (via Proxy)
-    "10.2.3.22"     # etcd_3 (via Proxy)
-    "10.2.2.30"     # Storage
-    
-    # [PC5] OPS
-    "10.2.2.50"     # Monitoring
-    "10.2.2.51"     # Monitoring_Backup
-    "10.2.2.60"     # DNS
-)
+# 인자가 있으면 그것을 대상 서버로 사용, 없으면 전체 리스트 사용
+if [ $# -gt 0 ]; then
+    SERVERS=("$@")
+    echo "🎯 지정된 서버들에만 배포를 진행합니다: ${SERVERS[*]}"
+else
+    # inventory.ini에서 추출한 모든 서버 IP 목록
+    SERVERS=(
+        # [PC1] Security Tier
+        "172.16.6.61"   # SECURE
+        "10.2.1.2"      # WAF
+        
+        # [PC2] K8S Control Plane
+        "10.2.2.2"      # K8S-ControlPlane1
+        "10.2.2.3"      # K8S-ControlPlane2
+        "10.2.2.4"      # K8S-ControlPlane3
+        
+        # [PC3] K8S Worker Nodes (Set A)
+        "10.2.2.5"      # K8S-WorkerNode1
+        "10.2.2.6"      # K8S-WorkerNode2
+        "10.2.2.7"      # K8S-WorkerNode3
+        
+        # [PC6] K8S Worker Nodes (Set B)
+        "10.2.2.8"      # K8S-WorkerNode4
+        "10.2.2.9"      # K8S-WorkerNode5
+        "10.2.2.10"     # K8S-WorkerNode6
+        
+        # [PC4] DB & Storage
+        "10.2.2.20"     # DB-Proxy1
+        "10.2.2.21"     # DB-Proxy2
+        "10.2.3.2"      # DB-Active (via Proxy)
+        "10.2.3.3"      # DB-Standby (via Proxy)
+        "10.2.3.4"      # DB-Backup (via Proxy)
+        "10.2.3.20"     # etcd_1 (via Proxy)
+        "10.2.3.21"     # etcd_2 (via Proxy)
+        "10.2.3.22"     # etcd_3 (via Proxy)
+        "10.2.2.30"     # Storage
+        
+        # [PC5] OPS
+        "10.2.2.50"     # Monitoring
+        "10.2.2.51"     # Monitoring_Backup
+        "10.2.2.60"     # DNS
+    )
+fi
 
 echo "═══════════════════════════════════════════════════════════════════════════"
 echo "Jenkins 컨테이너 SSH 키 자동 배포 시작"
