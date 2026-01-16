@@ -13,7 +13,7 @@
 #   all-db                - Run all DB fixes (keys + sudo + jenkins)
 # ═══════════════════════════════════════════════════════════════════════════
 
-set -e
+# set -e
 
 PASSWORD="${SSH_PASSWORD:-centos}"
 PROXY_HOST="10.2.2.20"

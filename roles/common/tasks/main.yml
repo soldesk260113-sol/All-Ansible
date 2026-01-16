@@ -33,11 +33,10 @@
   command: firewall-cmd --reload
 
 - name: 5. 모든 서버에 /etc/hosts 매핑 (Ansible Inventory 기준)
-  lineinfile:
-    path: /etc/hosts
-    line: "{{ hostvars[item]['ansible_host'] }} {{ item }}"
-    state: present
-  with_items: "{{ groups['all'] }}"
+  template:
+    src: hosts.j2
+    dest: /etc/hosts
+    mode: '0644'
 
 - name: 6. 필수 유틸리티 설치
   dnf:
