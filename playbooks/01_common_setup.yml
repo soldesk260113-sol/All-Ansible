@@ -39,7 +39,7 @@
 
     - name: "호스트네임 설정 (ex: PC1-SECURE)"
       hostname:
-        name: "{{ tier_prefix }}-{{ inventory_hostname }}"
+        name: "{{ tier_prefix }}-{{ inventory_hostname | replace('_', '-') }}"
 
     - name: Bash 프롬프트 색상 설정 (Tier별 자동 지정)
       blockinfile:

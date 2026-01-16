@@ -11,7 +11,7 @@
   gather_facts: no
   tasks:
     - name: SSH 배포 스크립트 실행
-      shell: "bash Script/allserver_distribute_sshkeys.sh"
+      shell: "bash Script/vm_distribute_ssh_ansible.sh"
       args:
         chdir: "{{ playbook_dir }}/../"
       register: script_result
