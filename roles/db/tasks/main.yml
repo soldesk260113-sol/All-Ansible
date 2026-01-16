@@ -9,22 +9,30 @@
 # ETCD nodes only
 # -------------------------------
 - import_tasks: etcd.yml
-  when: inventory_hostname in groups.get('etcd', [])
+  when: inventory_hostname in groups.get('ETCD_Cluster', [])
 
 # -------------------------------
 # DB nodes only (PostgreSQL/Patroni)
 # -------------------------------
 - import_tasks: postgres.yml
-  when: inventory_hostname in groups.get('db', [])
+  when: 
+    - inventory_hostname in groups.get('DB_Servers', [])
+    - inventory_hostname != 'DB-Backup'
 
 - import_tasks: patroni.yml
-  when: inventory_hostname in groups.get('db', [])
+  when: 
+    - inventory_hostname in groups.get('DB_Servers', [])
+    - inventory_hostname != 'DB-Backup'
 
 
 # (선택) 기타 구성들
 - import_tasks: pgbackrest.yml
-  when: inventory_hostname in groups.get('db', [])
+  when: 
+    - inventory_hostname in groups.get('DB_Servers', [])
+    - inventory_hostname != 'DB-Backup'
 
 - import_tasks: validate.yml
-  when: inventory_hostname in groups.get('db', [])
+  when: 
+    - inventory_hostname in groups.get('DB_Servers', [])
+    - inventory_hostname != 'DB-Backup'
 

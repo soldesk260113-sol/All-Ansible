@@ -10,7 +10,7 @@
 # Step 0: 네트워크 프로비저닝 (SSH 키 배포 및 IP/DNS 설정)
 # - SSH Key 배포 (localhost)
 # - 정적 IP 할당 및 네트워크 인터페이스 설정 (nmcli)
-- import_playbook: playbooks/00_network_provisioning.yml
+# - import_playbook: playbooks/00_network_provisioning.yml
 
 # Step 1: 모든 서버 기초 환경 구축
 # - OS 기본 설정 (NTP, 방화벽, 패키지 등)

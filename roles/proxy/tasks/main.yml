@@ -1,7 +1,14 @@
+---
+
 - import_tasks: iptables.yml
 
-- name: Validate required variables
-  ansible.builtin.import_tasks: validate.yml
+- name: Allow masquerade ON (NAT for DB Subnet)
+  firewalld:
+    masquerade: yes
+    zone: trusted
+    permanent: yes
+    state: enabled
+    immediate: yes
 
 - name: Install packages
   ansible.builtin.import_tasks: packages.yml

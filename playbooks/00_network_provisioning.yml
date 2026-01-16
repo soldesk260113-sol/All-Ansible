@@ -65,6 +65,29 @@
           - "Applied NIC 2: {{ nic2_interface | default('None') }}"
       when: not ansible_check_mode
 
+    - name: 기존 충돌 연결 정리 및 이름 변경 (SSH 끊김 방지)
+      shell: |
+        # 1. 대상 인터페이스(nic1_interface)의 활성 연결 UUID 확인
+        ACTIVE_UUID=$(nmcli -t -f UUID,DEVICE connection show --active | grep ":{{ nic1_interface }}$" | cut -d: -f1)
+        
+        if [ -n "$ACTIVE_UUID" ]; then
+            ACTIVE_NAME=$(nmcli -c no -t -f NAME,UUID connection show | grep "$ACTIVE_UUID" | cut -d: -f1)
+            TARGET_NAME="{{ nic1_interface }}"
+            
+            # 활성 연결의 이름이 목표와 다르면
+            if [ "$ACTIVE_NAME" != "$TARGET_NAME" ]; then
+                echo "Renaming active connection '$ACTIVE_NAME' to '$TARGET_NAME'..."
+                # 목표 이름의 기존(비활성) 연결이 있다면 삭제 (이름 충돌 방지)
+                nmcli connection delete "$TARGET_NAME" 2>/dev/null || true
+                # 활성 연결의 이름을 목표 이름으로 변경 (연결 유지)
+                nmcli connection modify "$ACTIVE_UUID" connection.id "$TARGET_NAME"
+            fi
+        fi
+      ignore_errors: yes
+      when: 
+        - not ansible_check_mode
+        - nic1_interface is defined
+
     - name: NIC 1 설정 ({{ nic1_interface }})
       nmcli:
         conn_name: "{{ nic1_interface }}"
@@ -74,6 +97,7 @@
         gw4: "{{ nic1_gateway | default(omit) }}"
         dns4: "{{ nic1_dns | default(omit) }}"
         method4: manual
+        autoconnect: yes
         state: present
       when: 
         - not ansible_check_mode
@@ -90,6 +114,7 @@
         gw4: "{{ nic2_gateway | default(omit) }}"
         dns4: "{{ nic2_dns | default(omit) }}"
         method4: manual
+        autoconnect: yes
         state: present
       when: 
         - not ansible_check_mode

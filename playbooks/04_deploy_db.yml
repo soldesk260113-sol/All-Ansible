@@ -2,6 +2,30 @@
 # Playbook 04: Deploy Database Tier - 데이터베이스 및 스토리지 계층 구축
 # ═══════════════════════════════════════════════════════════════════════════
 
+# 0. Firewall Service Initialization (Ensure firewalld is active, confirm conflict resolution)
+- name: Ensure Firewall Service is Active
+  hosts: DB_Proxies, DB_Servers, ETCD_Cluster
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Stop and Disable iptables service (Prevent Conflict)
+      ansible.builtin.service:
+        name: iptables
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Unmask firewalld service
+      ansible.builtin.systemd:
+        name: firewalld
+        masked: false
+
+    - name: Ensure firewalld is started and enabled
+      ansible.builtin.service:
+        name: firewalld
+        state: started
+        enabled: true
+
 # 1. DB Proxy (HAProxy + Keepalived) 구축
 # - 역할: 애플리케이션의 DB 접속 요청을 로드밸런싱하고, Active DB로 라우팅
 # - 고가용성: Keepalived VIP를 통해 Proxy 서버 장애 시 자동 절체

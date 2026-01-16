@@ -9,5 +9,5 @@ proxy_nat_external_if: "{{ nic1_interface | default('ens160') }}"
 # proxy_nat_internal_if: "ens192"
 
 # iptables-services 사용 여부 (RHEL/Rocky/Alma 권장)
-proxy_nat_use_iptables_services: true
+proxy_nat_use_iptables_services: false
 
