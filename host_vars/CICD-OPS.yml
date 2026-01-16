@@ -1,6 +1,5 @@
 # CI/CD and Ops Server (Ansible)
 ansible_host: 10.2.2.40
-ansible_connection: local
 
 nic_count: 1
 nic1_interface: ens160
