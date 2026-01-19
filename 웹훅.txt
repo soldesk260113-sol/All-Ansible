@@ -1,0 +1,14 @@
+[Webhook 추가 방법] (Gitea 화면에서)
+우측 상단의 [Add Webhook] 버튼 클릭
+[Gitea] 선택
+설정값 입력:
+Target URL (Payload URL): http://10.2.2.40:8080/gitea-webhook/post (이 주소로 "변경됐어!" 하고 신호)
+Content Type: application/json
+나머지는 기본값 유지 (Trigger On: Push Events 등)
+하단의 [Add Webhook] 클릭
+
+[참고]
+설정을 마치신 후에는, 확인을 위해 테스트용 빈 커밋을 발생.
+
+git commit --allow-empty -m "Test Jenkins Trigger"
+git push all main

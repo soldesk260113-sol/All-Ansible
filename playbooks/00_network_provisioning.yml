@@ -108,13 +108,13 @@
     - name: 새 연결 활성화 ({{ nic1_interface }})
       shell: "nmcli connection up {{ nic1_interface }}"
       ignore_errors: yes
-      async: 10
+      async: 45
       poll: 0
       when: not ansible_check_mode
 
     - name: 잠시 대기 (네트워크 안정화)
       pause:
-        seconds: 3
+        seconds: 10
       when: not ansible_check_mode
 
     - name: 구식 연결 정리 (eth0, eth1 등 최종 제거)
