@@ -7,5 +7,6 @@ nic1_ip_address: 10.2.3.2
 nic1_netmask: 255.255.255.0
 nic1_gateway: 10.2.3.254
 nic1_dns: 8.8.8.8
+nic1_dns_search: example.com
 
 # SSH 설정은 group_vars/DB_Servers.yml에서 상속

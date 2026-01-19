@@ -65,29 +65,6 @@
           - "Applied NIC 2: {{ nic2_interface | default('None') }}"
       when: not ansible_check_mode
 
-    - name: 기존 충돌 연결 정리 및 이름 변경 (SSH 끊김 방지)
-      shell: |
-        # 1. 대상 인터페이스(nic1_interface)의 활성 연결 UUID 확인
-        ACTIVE_UUID=$(nmcli -t -f UUID,DEVICE connection show --active | grep ":{{ nic1_interface }}$" | cut -d: -f1)
-        
-        if [ -n "$ACTIVE_UUID" ]; then
-            ACTIVE_NAME=$(nmcli -c no -t -f NAME,UUID connection show | grep "$ACTIVE_UUID" | cut -d: -f1)
-            TARGET_NAME="{{ nic1_interface }}"
-            
-            # 활성 연결의 이름이 목표와 다르면
-            if [ "$ACTIVE_NAME" != "$TARGET_NAME" ]; then
-                echo "Renaming active connection '$ACTIVE_NAME' to '$TARGET_NAME'..."
-                # 목표 이름의 기존(비활성) 연결이 있다면 삭제 (이름 충돌 방지)
-                nmcli connection delete "$TARGET_NAME" 2>/dev/null || true
-                # 활성 연결의 이름을 목표 이름으로 변경 (연결 유지)
-                nmcli connection modify "$ACTIVE_UUID" connection.id "$TARGET_NAME"
-            fi
-        fi
-      ignore_errors: yes
-      when: 
-        - not ansible_check_mode
-        - nic1_interface is defined
-
     - name: NIC 1 설정 ({{ nic1_interface }})
       nmcli:
         conn_name: "{{ nic1_interface }}"
@@ -96,6 +73,7 @@
         ip4: "{{ nic1_ip_address }}/24"
         gw4: "{{ nic1_gateway | default(omit) }}"
         dns4: "{{ nic1_dns | default(omit) }}"
+        dns4_search: "{{ nic1_dns_search | default(omit) }}"
         method4: manual
         autoconnect: yes
         state: present
@@ -113,6 +91,7 @@
         ip4: "{{ nic2_ip_address }}/24"
         gw4: "{{ nic2_gateway | default(omit) }}"
         dns4: "{{ nic2_dns | default(omit) }}"
+        dns4_search: "{{ nic2_dns_search | default(omit) }}"
         method4: manual
         autoconnect: yes
         state: present
@@ -126,12 +105,89 @@
       ignore_errors: yes
       when: not ansible_check_mode
 
-    - name: 인터페이스 상태 확인 (변경 사항 적용)
+    - name: 새 연결 활성화 ({{ nic1_interface }})
       shell: "nmcli connection up {{ nic1_interface }}"
       ignore_errors: yes
       async: 10
       poll: 0
       when: not ansible_check_mode
+
+    - name: 잠시 대기 (네트워크 안정화)
+      pause:
+        seconds: 3
+      when: not ansible_check_mode
+
+    - name: 구식 연결 정리 (eth0, eth1 등 최종 제거)
+      shell: |
+        TARGET_IF="{{ nic1_interface }}"
+        
+        echo "=== Final cleanup: removing old connections for $TARGET_IF ==="
+        
+        # 현재 활성 연결 확인
+        ACTIVE_CONN=$(nmcli -t -f NAME,DEVICE connection show --active | grep ":$TARGET_IF$" | cut -d: -f1)
+        
+        # 이 인터페이스와 연결된 모든 connection 찾기 (활성/비활성 모두)
+        # connection.interface-name으로 찾아야 비활성 연결도 검색됨
+        ALL_CONNS=$(nmcli -t -f NAME,DEVICE connection show | awk -F: '{print $1}' | while read conn; do
+            IFACE=$(nmcli -t -f connection.interface-name connection show "$conn" 2>/dev/null | cut -d: -f2)
+            if [ "$IFACE" = "$TARGET_IF" ]; then
+                echo "$conn"
+            fi
+        done)
+        
+        # 목표 이름이 아닌 모든 연결 삭제
+        for conn in $ALL_CONNS; do
+            # 현재 활성 연결은 건드리지 않음 (SSH 보호)
+            if [ "$conn" = "$ACTIVE_CONN" ]; then
+                echo "Keeping active connection: $conn"
+                continue
+            fi
+            
+            # 목표 이름(ens160)이 아닌 연결 삭제
+            if [ "$conn" != "$TARGET_IF" ]; then
+                echo "Removing old connection: $conn"
+                nmcli connection delete "$conn" 2>/dev/null || true
+            fi
+        done
+        
+        echo "=== Cleanup complete ==="
+      ignore_errors: yes
+      when: 
+        - not ansible_check_mode
+        - nic1_interface is defined
+
+    - name: NIC 2 구식 연결 정리 (존재하는 경우)
+      shell: |
+        TARGET_IF="{{ nic2_interface }}"
+        
+        echo "=== Final cleanup: removing old connections for $TARGET_IF ==="
+        
+        ACTIVE_CONN=$(nmcli -t -f NAME,DEVICE connection show --active | grep ":$TARGET_IF$" | cut -d: -f1)
+        
+        # 이 인터페이스와 연결된 모든 connection 찾기
+        ALL_CONNS=$(nmcli -t -f NAME,DEVICE connection show | awk -F: '{print $1}' | while read conn; do
+            IFACE=$(nmcli -t -f connection.interface-name connection show "$conn" 2>/dev/null | cut -d: -f2)
+            if [ "$IFACE" = "$TARGET_IF" ]; then
+                echo "$conn"
+            fi
+        done)
+        
+        for conn in $ALL_CONNS; do
+            if [ "$conn" = "$ACTIVE_CONN" ] || [ "$conn" = "$TARGET_IF" ]; then
+                continue
+            fi
+            
+            echo "Removing old connection: $conn"
+            nmcli connection delete "$conn" 2>/dev/null || true
+        done
+        
+        echo "=== Cleanup complete ==="
+      ignore_errors: yes
+      when: 
+        - not ansible_check_mode
+        - nic_count|default(0)|int >= 2
+        - nic2_interface is defined
+
 - name: 외부 통신 설정 (Bridge Network - PC1)
   hosts: Security_Tier
   become: yes

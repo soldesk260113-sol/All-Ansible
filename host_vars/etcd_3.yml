@@ -13,6 +13,15 @@ dns_servers:
   - "10.2.2.60"
   - "8.8.8.8"
 
+# Network Provisioning 플레이북용 변수
+nic_count: 1
+nic1_interface: ens160
+nic1_ip_address: 10.2.3.22
+nic1_netmask: 255.255.255.0
+nic1_gateway: 10.2.3.1
+nic1_dns: 10.2.2.60
+nic1_dns_search: example.com
+
 # etcd 클러스터 설정
 etcd_cluster_role: "member"
 etcd_node_name: "etcd-3"

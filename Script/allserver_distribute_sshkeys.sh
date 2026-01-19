@@ -79,7 +79,7 @@ for ip in "${SERVERS[@]}"; do
     
     if [[ "$ip" == 10.2.3.* ]]; then
         # ProxyCommand 자체를 하나의 인자로 정확히 전달
-        SSH_OPTS+=("-o" "ProxyCommand=ssh -o StrictHostKeyChecking=no -W %h:%p -q root@10.2.2.20")
+        SSH_OPTS+=("-o" "ProxyCommand=ssh -o StrictHostKeyChecking=no -W %h:%p -q ansible@10.2.2.20")
     fi
 
     host_entry_root="root@$ip"
