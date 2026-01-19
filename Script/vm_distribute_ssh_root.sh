@@ -90,6 +90,30 @@ echo "  → 공개키: ${PUB_KEY:0:60}..."
 echo ""
 
 # ───────────────────────────────────────────────────────────────────────────
+# Step 2.5: Proxy 호스트에 SSH 키 배포 (ProxyJump 사전 준비)
+# ───────────────────────────────────────────────────────────────────────────
+echo "[2.5/4] Proxy 호스트에 SSH 키 배포 (10.2.3.x 접근을 위한 사전 준비)..."
+printf "  → %s : " "$PROXY_HOST"
+
+if timeout 15 sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 "$TARGET_USER@$PROXY_HOST" "
+    mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    grep -qF '$PUB_KEY' ~/.ssh/authorized_keys 2>/dev/null || echo '$PUB_KEY' >> ~/.ssh/authorized_keys
+    chmod 600 ~/.ssh/authorized_keys
+    restorecon -R -v ~/.ssh 2>/dev/null || true
+" &>/dev/null; then
+    if timeout 5 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PasswordAuthentication=no -o PubkeyAuthentication=yes "$TARGET_USER@$PROXY_HOST" 'exit 0' &>/dev/null; then
+        echo "✅ 성공 (ProxyJump 사용 가능)"
+    else
+        echo "⚠️  배포됨 (검증 실패, ProxyJump 동작 불확실)"
+    fi
+else
+    echo "❌ 실패 (10.2.3.x 서브넷 접근 불가능)"
+    echo ""
+    echo "⚠️  경고: Proxy 호스트 키 배포 실패로 10.2.3.x 서브넷 배포가 실패할 수 있습니다."
+fi
+echo ""
+
+# ───────────────────────────────────────────────────────────────────────────
 # Step 3: 서버들에 SSH 키 배포
 # ───────────────────────────────────────────────────────────────────────────
 echo "[3/4] 서버들에 SSH 키 배포 시작 (총 ${#SERVERS[@]}대)..."
@@ -101,9 +125,9 @@ FAIL_COUNT=0
 for ip in "${SERVERS[@]}"; do
     printf "%-20s : " "$ip"
     
-    # 10.2.3.x 서브넷은 프록시 사용
+    # 10.2.3.x 서브넷은 프록시 사용 (ProxyJump 방식)
     if [[ "$ip" == 10.2.3.* ]]; then
-        SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -o ProxyCommand='ssh -o StrictHostKeyChecking=no -W %h:%p -q $TARGET_USER@$PROXY_HOST'"
+        SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -o ProxyJump=$TARGET_USER@$PROXY_HOST"
     else
         SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10"
     fi
@@ -148,5 +172,4 @@ if [ $FAIL_COUNT -eq 0 ]; then
     exit 0
 else
     echo "⚠️  일부 서버에 키 배포 실패"
-    exit 1
 fi

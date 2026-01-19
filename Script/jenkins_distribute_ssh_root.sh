@@ -48,6 +48,7 @@ SERVERS=(
     "10.2.2.30"     # Storage
     
     # [PC5] OPS
+    "10.2.2.40"     # CICD-OPS
     "10.2.2.50"     # Monitoring
     "10.2.2.51"     # Monitoring_Backup
     "10.2.2.60"     # DNS
@@ -108,6 +109,42 @@ echo "  → 공개키: ${JENKINS_PUB_KEY:0:60}..."
 echo ""
 
 # ───────────────────────────────────────────────────────────────────────────
+# Step 3.5: Proxy 호스트에 Jenkins SSH 키 배포 (ProxyJump 사전 준비)
+# ───────────────────────────────────────────────────────────────────────────
+echo "[3.5/6] Proxy 호스트에 Jenkins SSH 키 배포 (10.2.3.x 접근을 위한 사전 준비)..."
+printf "  → %s : " "$PROXY_HOST"
+
+# Jenkins 컨테이너에서 Proxy 호스트로 키 배포
+PROXY_RESULT=$(timeout 15 docker exec $JENKINS_CONTAINER bash -c "
+    SSH_OPTS='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5'
+    
+    if timeout 10 sshpass -p '$PASSWORD' ssh \$SSH_OPTS $TARGET_USER@$PROXY_HOST \"
+        mkdir -p ~/.ssh && chmod 700 ~/.ssh
+        grep -qF '$JENKINS_PUB_KEY' ~/.ssh/authorized_keys 2>/dev/null || echo '$JENKINS_PUB_KEY' >> ~/.ssh/authorized_keys
+        chmod 600 ~/.ssh/authorized_keys
+    \" &>/dev/null; then
+        if timeout 5 ssh \$SSH_OPTS -o PasswordAuthentication=no -o PubkeyAuthentication=yes $TARGET_USER@$PROXY_HOST 'exit 0' &>/dev/null; then
+            echo 'SUCCESS'
+        else
+            echo 'VERIFY_FAILED'
+        fi
+    else
+        echo 'DEPLOY_FAILED'
+    fi
+" 2>&1 | tail -1)
+
+if [ "$PROXY_RESULT" = "SUCCESS" ]; then
+    echo "✅ 성공 (ProxyJump 사용 가능)"
+elif [ "$PROXY_RESULT" = "VERIFY_FAILED" ]; then
+    echo "⚠️  배포됨 (검증 실패, ProxyJump 동작 불확실)"
+else
+    echo "❌ 실패 (10.2.3.x 서브넷 접근 불가능)"
+    echo ""
+    echo "⚠️  경고: Proxy 호스트 키 배포 실패로 10.2.3.x 서브넷 배포가 실패할 수 있습니다."
+fi
+echo ""
+
+# ───────────────────────────────────────────────────────────────────────────
 # Step 4: 서버들에 SSH 키 배포 (Jenkins 컨테이너에서)
 # ───────────────────────────────────────────────────────────────────────────
 echo "[4/6] 서버들에 SSH 키 배포 시작 (총 ${#SERVERS[@]}대)..."
@@ -132,8 +169,8 @@ for ip in "${SERVERS[@]}"; do
         SSH_OPTS='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5'
         
         if [ '$USE_PROXY' = 'yes' ]; then
-            PROXY_CMD='ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -W %h:%p -q $TARGET_USER@$PROXY_HOST'
-            SSH_OPTS=\"\$SSH_OPTS -o ProxyCommand=\\\"\$PROXY_CMD\\\"\"
+            # ProxyJump를 사용하여 더 간단하게 처리
+            SSH_OPTS=\"\$SSH_OPTS -o ProxyJump=$TARGET_USER@$PROXY_HOST\"
         fi
         
         if timeout 10 sshpass -p '$PASSWORD' ssh \$SSH_OPTS $TARGET_USER@$ip \"
