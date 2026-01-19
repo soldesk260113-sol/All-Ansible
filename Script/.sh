@@ -17,7 +17,7 @@ PROXY_HOST="10.2.2.20"
 # 대상 서버 리스트 (내부 IP 기준)
 SERVERS=(
     # [PC1]
-    "10.2.1.1" "10.2.1.2" 
+    "172.16.6.61" "10.2.1.2" 
     # [PC2]
     "10.2.2.2" "10.2.2.3" "10.2.2.4"
     # [PC3]
@@ -39,9 +39,10 @@ echo "========================================================"
 for ip in "${SERVERS[@]}"; do
     echo -n ">> Processing $ip ... "
     
-    # 10.2.3.x 서브넷은 프록시 사용
-    if [[ "$ip" == 10.2.3.* ]]; then
-        SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=3 -o ProxyCommand=\"ssh -o StrictHostKeyChecking=no -W %h:%p -q root@$PROXY_HOST\""
+    # 10.2.3.x 서브넷은 프록시 사용 (-J 옵션 사용)
+    if [[ "$ip" == 10.2.3.* ]]; then -o UserKnownHostsFile=/dev/null -o ProxyJump=root@10.2.2.20'
+1
+        SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=3 -J root@$PROXY_HOST"
     else
         SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=3"
     fi
