@@ -39,6 +39,15 @@
   changed_when: false
   failed_when: false
 
+- name: Create /var/named/data directory for logging
+  file:
+    path: /var/named/data
+    state: directory
+    owner: named
+    group: named
+    mode: '0770'
+    recurse: yes
+
 - name: Create zone files from dns_zones
   template:
     src: zone.j2

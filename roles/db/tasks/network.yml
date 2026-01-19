@@ -6,18 +6,18 @@
     state: present
     reload: true
 
-- name: Get active connection name for first ens* device
+- name: Get active connection name for first ethernet device (802-3-ethernet)
   ansible.builtin.shell: |
     nmcli -t -f TYPE,NAME con show --active | awk -F: '$1 == "802-3-ethernet" {print $2; exit}'
   args:
     executable: /bin/bash
   register: nmcli_active_con
   changed_when: false
-  check_mode: no
+  check_mode: false
 
 - name: Fail if active connection name not found
   ansible.builtin.fail:
-    msg: "No active NetworkManager connection found for ens* on {{ inventory_hostname }}. Check nmcli con show --active."
+    msg: "No active NetworkManager connection found on {{ inventory_hostname }}. Detected: '{{ nmcli_active_con.stdout | default('NONE') }}'. Check nmcli con show --active."
   when: nmcli_active_con.stdout | trim == ""
 
 - name: Set default gateway to Proxy internal VIP (10.2.3.254)

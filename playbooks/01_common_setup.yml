@@ -204,7 +204,21 @@
       ignore_errors: yes
 
     # ─────────────────────────────────────────────────────────────────────────
-    # 5. 바탕화면 바로가기 설정 (root 사용자)
+    # 5. GUI 모드로 부팅 설정 (Runlevel 5 / graphical.target)
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: 현재 기본 타겟 확인
+      command: systemctl get-default
+      register: current_target
+      changed_when: false
+      ignore_errors: yes
+
+    - name: GUI 모드로 기본 타겟 설정 (graphical.target)
+      command: systemctl set-default graphical.target
+      when: current_target.stdout != "graphical.target"
+      ignore_errors: yes
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 6. 바탕화면 바로가기 설정 (root 사용자)
     # ─────────────────────────────────────────────────────────────────────────
     - name: root 바탕화면 디렉토리 경로 감지
       shell: "su - root -c 'xdg-user-dir DESKTOP' 2>/dev/null || echo /root/Desktop"
