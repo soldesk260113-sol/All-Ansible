@@ -84,17 +84,13 @@
     - debug:
         var: file_check.stdout_lines
 
-    # [대상 서버 작업] 파일 복사
-    - name: Node Exporter 바이너리 복사 (Controller -> Remote)
-      copy:
-        src: /tmp/node_exporter.tar.gz
-        dest: /tmp/node_exporter.tar.gz
-
-    - name: Node Exporter 압축 해제
+    # [대상 서버 작업] 파일 복사 및 압축 해제 (Controller -> Remote)
+    # copy 모듈 없이 unarchive가 직접 전송 및 해제 (안정성 향상)
+    - name: Node Exporter 압축 해제 (Controller -> Remote)
       unarchive:
         src: /tmp/node_exporter.tar.gz
         dest: /tmp/
-        remote_src: yes
+        remote_src: no
       ignore_errors: yes
 
     - name: Node Exporter 바이너리 설치 (실행 파일 이동)
