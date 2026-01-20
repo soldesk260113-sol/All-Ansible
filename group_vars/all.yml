@@ -10,6 +10,7 @@ ansible_ssh_private_key_file: ~/.ssh/id_rsa
 # 공통 네트워크 설정 (DNS 및 NTP)
 # 모든 서버가 구글 DNS와 타임 서버를 바라보게 함
 dns_servers:
+  - 10.2.2.60
   - 8.8.8.8
 
 ntp_servers:

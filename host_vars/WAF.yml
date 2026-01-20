@@ -8,7 +8,6 @@ nic1_interface: ens160
 nic1_ip_address: 10.2.1.2
 nic1_netmask: 255.255.255.0
 nic1_gateway: 10.2.1.1
-nic1_dns: 8.8.8.8
 
 # eth1 - Outbound to K8s/DMZ
 nic2_interface: ens192

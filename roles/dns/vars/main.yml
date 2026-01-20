@@ -34,6 +34,7 @@ dns_zones:
       - { name: "wk1", ip: "10.2.2.5" }
       - { name: "wk2", ip: "10.2.2.6" }
       - { name: "wk3", ip: "10.2.2.7" }
+      
       - { name: "wk4", ip: "10.2.2.8" }
       - { name: "wk5", ip: "10.2.2.9" }
       - { name: "wk6", ip: "10.2.2.10" }
@@ -71,6 +72,8 @@ dns_zones:
     records:
       - { name: "ci",  ip: "10.2.2.40" }
       - { name: "mon", ip: "10.2.2.50" }
+      - { name: "mon-backup", ip: "10.2.2.51" }
+      - { name: "mon-vip", ip: "10.2.2.99" }
 
   # -----------------------------------------
   # Edge / Proxy Layer

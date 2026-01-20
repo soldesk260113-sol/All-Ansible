@@ -7,7 +7,6 @@ nic1_interface: ens192
 nic1_ip_address: 10.2.2.21
 nic1_netmask: 255.255.255.0
 nic1_gateway: 10.2.2.1
-nic1_dns: 8.8.8.8
 
 # VIP for eth0
 keepalived_vip_interface: ens192

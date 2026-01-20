@@ -72,8 +72,8 @@
         type: ethernet
         ip4: "{{ nic1_ip_address }}/24"
         gw4: "{{ nic1_gateway | default(omit) }}"
-        dns4: "{{ nic1_dns | default(omit) }}"
-        dns4_search: "{{ nic1_dns_search | default(omit) }}"
+        dns4: "{{ nic1_dns | default(dns_servers | join(' ')) }}"
+        dns4_search: "{{ nic1_dns_search | default('core.internal k8s.internal db.internal svc.internal ops.internal') }}"
         method4: manual
         autoconnect: yes
         state: present
@@ -90,8 +90,8 @@
         type: ethernet
         ip4: "{{ nic2_ip_address }}/24"
         gw4: "{{ nic2_gateway | default(omit) }}"
-        dns4: "{{ nic2_dns | default(omit) }}"
-        dns4_search: "{{ nic2_dns_search | default(omit) }}"
+        dns4: "{{ nic2_dns | default(dns_servers | join(' ')) }}"
+        dns4_search: "{{ nic2_dns_search | default('core.internal k8s.internal db.internal svc.internal ops.internal') }}"
         method4: manual
         autoconnect: yes
         state: present

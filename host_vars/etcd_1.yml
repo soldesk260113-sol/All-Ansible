@@ -19,8 +19,6 @@ nic1_interface: ens160
 nic1_ip_address: 10.2.3.20
 nic1_netmask: 255.255.255.0
 nic1_gateway: 10.2.3.1
-nic1_dns: 10.2.2.60
-nic1_dns_search: example.com
 
 # etcd 클러스터 설정
 etcd_cluster_role: "member"
