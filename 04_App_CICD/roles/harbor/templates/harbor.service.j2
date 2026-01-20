@@ -1,0 +1,20 @@
+[Unit]
+Description=Harbor Container Registry
+Requires=docker.service
+After=docker.service network.target
+
+[Service]
+Restart=always
+User=root
+Group=root
+WorkingDirectory={{ harbor_install_dir | default('/opt/harbor') }}
+# Clean up potential leftovers
+ExecStartPre=/usr/local/bin/docker-compose -f {{ harbor_install_dir | default('/opt/harbor') }}/docker-compose.yml down
+# Start containers
+ExecStart=/usr/local/bin/docker-compose -f {{ harbor_install_dir | default('/opt/harbor') }}/docker-compose.yml up
+# Stop containers
+ExecStop=/usr/local/bin/docker-compose -f {{ harbor_install_dir | default('/opt/harbor') }}/docker-compose.yml down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
