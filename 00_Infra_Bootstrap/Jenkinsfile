@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     parameters {
-        choice(name: 'PLAYBOOK', choices: ['00_bootstrap_ansible_user.yml', '00_network_provisioning.yml', '01_common_setup.yml'], description: 'Select the infrastructure playbook to run')
+        choice(name: 'PLAYBOOK', choices: ['site.yml', '00_bootstrap_ansible_user.yml', '00_network_provisioning.yml', '01_common_setup.yml'], description: 'Select the infrastructure playbook to run')
         string(name: 'LIMIT', defaultValue: 'all', description: 'Target hosts limit (e.g. PC1, !DB_Servers). Default: all')
         booleanParam(name: 'DRY_RUN', defaultValue: false, description: 'Run in check mode (dry-run)?')
     }

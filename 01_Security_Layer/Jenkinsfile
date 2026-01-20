@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     parameters {
-        choice(name: 'PLAYBOOK', choices: ['08_deploy_security.yml'], description: 'Select the security playbook to run')
+        choice(name: 'PLAYBOOK', choices: ['site.yml', '08_deploy_security.yml'], description: 'Select the security playbook to run')
         string(name: 'LIMIT', defaultValue: 'all', description: 'Target hosts limit (e.g. PC1, WAF). Default: all')
         booleanParam(name: 'DRY_RUN', defaultValue: false, description: 'Run in check mode (dry-run)?')
     }

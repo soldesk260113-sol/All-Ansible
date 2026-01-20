@@ -1,0 +1,8 @@
+---
+# ═══════════════════════════════════════════════════════════════════════════
+# Site Playbook: 00_Infra_Bootstrap Orchestrator
+# ═══════════════════════════════════════════════════════════════════════════
+
+- import_playbook: 00_bootstrap_ansible_user.yml
+- import_playbook: 00_network_provisioning.yml
+- import_playbook: 01_common_setup.yml
