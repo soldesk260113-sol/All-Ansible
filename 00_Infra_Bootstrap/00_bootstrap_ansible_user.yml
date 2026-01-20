@@ -1,0 +1,47 @@
+---
+# ═══════════════════════════════════════════════════════════════════════════
+# Playbook 00: Bootstrap Ansible User - Ansible 운영 계정 생성
+# ═══════════════════════════════════════════════════════════════════════════
+# 설명: 'ansible' 사용자를 생성하고, Sudo 권한 부여 및 SSH 키를 배포합니다.
+# 주의: 이 플레이북은 반드시 'root' 계정으로 실행해야 합니다.
+
+- name: Bootstrap Ansible User
+  hosts: All_Nodes
+  become: yes
+  vars:
+    # 'ansible' Password Hash (Password: ansible)
+    # Generated with: openssl passwd -6 ansible
+    ansible_user_password: "$6$pM0PO/owzpzELubz$jO4U9AqsEqGiRMlqXpFfgcBAW1zkGpu7IRRX0hUzoExm8SR4IjJJIIY92W1ejlsnHIS4drR.c5XJc7DQtloBW."
+
+  tasks:
+    # 1. Ansible 사용자 생성
+    - name: Ensure 'ansible' user exists
+      user:
+        name: ansible
+        password: "{{ ansible_user_password }}"
+        shell: /bin/bash
+        groups: wheel   # RHEL/CentOS sudo group
+        append: yes
+        state: present
+
+    # 2. Sudo 권한 설정 (비밀번호 없이)
+    - name: Allow 'ansible' user to have passwordless sudo
+      lineinfile:
+        path: /etc/sudoers.d/ansible
+        line: 'ansible ALL=(ALL) NOPASSWD: ALL'
+        create: yes
+        mode: '0440'
+        validate: 'visudo -cf %s'
+
+    - name: Set up authorized keys for 'ansible' user (Control Node Root)
+      authorized_key:
+        user: ansible
+        state: present
+        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+
+    - name: Set up authorized keys for 'ansible' user (Jenkins Container Root)
+      authorized_key:
+        user: ansible
+        state: present
+        key: "{{ jenkins_ssh_public_key }}"
+      when: jenkins_ssh_public_key is defined

@@ -1,0 +1,446 @@
+---
+# ═══════════════════════════════════════════════════════════════════════════
+# Playbook 01: Common Setup - 모든 서버 기초 환경 구축
+# 설명: 모든 서버(17대)에 공통적으로 적용되는 패키지 설치, 시간 동기화, 호스트 파일 설정 등을 수행합니다.
+# ═══════════════════════════════════════════════════════════════════════════
+- name: 공통 설정 (Hosts 파일, 방화벽, 패키지)
+  hosts: All_Nodes
+  become: yes
+  tasks:
+    - name: Hosts 파일 설정 (Clean Rewrite)
+      copy:
+        dest: /etc/hosts
+        content: |
+          127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+          ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+          {% for host in groups['All_Nodes'] %}
+          {{ hostvars[host].ansible_host }} {{ host }}
+          {% endfor %}
+      tags: hosts_file
+
+    - name: Firewalld 서비스 활성화 및 시작
+      service:
+        name: firewalld
+        state: started
+        enabled: yes
+      ignore_errors: yes
+
+    - name: 호스트네임 Prefix 결정 (Tier 감지)
+      set_fact:
+        tier_prefix: >-
+          {%- if inventory_hostname in ['SECURE', 'WAF'] -%}PC1
+          {%- elif 'ControlPlane' in inventory_hostname -%}PC2
+          {%- elif inventory_hostname in ['K8S-WorkerNode1', 'K8S-WorkerNode2', 'K8S-WorkerNode3'] -%}PC3
+          {%- elif 'DB' in inventory_hostname or 'Storage' in inventory_hostname or 'etcd' in inventory_hostname -%}PC4
+          {%- elif inventory_hostname in ['CICD-OPS', 'DNS'] or 'Monitoring' in inventory_hostname -%}PC5
+          {%- elif inventory_hostname in ['K8S-WorkerNode4', 'K8S-WorkerNode5', 'K8S-WorkerNode6'] -%}PC6
+          {%- else -%}PCX{%- endif -%}
+
+    - name: "호스트네임 설정 (ex: PC1-SECURE)"
+      hostname:
+        name: "{{ tier_prefix }}-{{ inventory_hostname | replace('_', '-') }}"
+
+    - name: Bash 프롬프트 색상 설정 (Tier별 자동 지정)
+      blockinfile:
+        path: /root/.bashrc
+        marker: "# {mark} ANSIBLE MANAGED PROMPT COLOR"
+        content: |
+          # Tier-based Prompt Color
+          # PC1(Red), PC2(Green), PC3(Yellow), PC4(Blue), PC5(Purple), PC6(Cyan)
+          case "$(hostname)" in
+            PC1*) COLOR="91" ;; # Red
+            PC2*) COLOR="92" ;; # Green
+            PC3*) COLOR="93" ;; # Yellow
+            PC4*) COLOR="94" ;; # Blue
+            PC5*) COLOR="95" ;; # Purple
+            PC6*) COLOR="96" ;; # Cyan
+            *)    COLOR="0"  ;; # Default
+          esac
+          
+          export PS1="\[\e[${COLOR};1m\][\u@\h\[\e[33;1m\] \w]\$ \[\e[m\]"
+          alias c='clear'
+          alias rm='rm -i'
+          alias cp='cp -i'
+          alias mv='mv -i'
+
+    - name: 배포 - pingtest.sh (연결 테스트 스크립트)
+      copy:
+        src: "{{ playbook_dir }}/../Script/pingtest.sh"
+        dest: /usr/local/bin/pingtest.sh
+        mode: '0755'
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# [추가 설정] GUI 및 데스크탑 환경 조성 (Chrome, VSCode, Antigravity, Shortcuts)
+# 대상: 모든 서버 (All_Nodes)
+# ═══════════════════════════════════════════════════════════════════════════
+- name: GUI & Desktop Environment Setup (All Nodes)
+  hosts: All_Nodes
+  become: yes
+  tasks:
+    # ─────────────────────────────────────────────────────────────────────────
+    # 1. Google Chrome 설치
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: Chrome 설치 여부 확인
+      command: which google-chrome-stable
+      register: chrome_installed
+      changed_when: false
+      failed_when: false
+      ignore_errors: yes
+
+    - name: Google Chrome RPM 다운로드
+      get_url:
+        url: https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm
+        dest: /tmp/google-chrome-stable.rpm
+        mode: '0644'
+      when: chrome_installed.rc != 0
+      ignore_errors: yes
+
+    - name: Chrome RPM 설치
+      dnf:
+        name: /tmp/google-chrome-stable.rpm
+        state: present
+        disable_gpg_check: yes
+      when: chrome_installed.rc != 0
+      ignore_errors: yes
+
+    - name: Chrome RPM 파일 삭제
+      file:
+        path: /tmp/google-chrome-stable.rpm
+        state: absent
+      when: chrome_installed.rc != 0
+      ignore_errors: yes
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 2. VS Code 설치
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: VS Code 설치 여부 확인
+      command: which code
+      register: vscode_installed
+      changed_when: false
+      failed_when: false
+      ignore_errors: yes
+
+    - name: Microsoft GPG Key 가져오기
+      rpm_key:
+        state: present
+        key: https://packages.microsoft.com/keys/microsoft.asc
+      when: vscode_installed.rc != 0
+      ignore_errors: yes
+
+    - name: VS Code Repo 추가
+      copy:
+        dest: /etc/yum.repos.d/vscode.repo
+        content: |
+          [code]
+          name=Visual Studio Code
+          baseurl=https://packages.microsoft.com/yumrepos/vscode
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+      when: vscode_installed.rc != 0
+      ignore_errors: yes
+
+    - name: DNF 캐시 갱신 (VS Code Repo)
+      command: dnf makecache --disablerepo=* --enablerepo=code
+      changed_when: false
+      when: vscode_installed.rc != 0
+      ignore_errors: yes
+
+    - name: VS Code 설치
+      dnf:
+        name: code
+        state: present
+      when: vscode_installed.rc != 0
+      ignore_errors: yes
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 3. Antigravity 설치 (공식 RPM 방식)
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: Antigravity 설치 여부 확인
+      command: which antigravity
+      register: antigravity_installed
+      changed_when: false
+      failed_when: false
+      ignore_errors: yes
+
+    - name: Antigravity RPM Repository 추가
+      copy:
+        dest: /etc/yum.repos.d/antigravity.repo
+        content: |
+          [antigravity-rpm]
+          name=Antigravity RPM Repository
+          baseurl=https://us-central1-yum.pkg.dev/projects/antigravity-auto-updater-dev/antigravity-rpm
+          enabled=1
+          gpgcheck=0
+      when: antigravity_installed.rc != 0
+      ignore_errors: yes
+
+    - name: DNF 캐시 갱신 (Antigravity Repo)
+      command: dnf makecache
+      changed_when: false
+      when: antigravity_installed.rc != 0
+      ignore_errors: yes
+
+    - name: Antigravity 패키지 설치
+      dnf:
+        name: antigravity
+        state: present
+      when: antigravity_installed.rc != 0
+      ignore_errors: yes
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 4. GNOME 확장 및 GUI 툴
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: GNOME 확장 및 트윅 도구 설치
+      dnf:
+        name: 
+          - gnome-extensions-app
+          - gnome-tweaks
+          - dconf-editor
+          - gnome-shell-extension-desktop-icons
+        state: present
+      ignore_errors: yes
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 5. GUI 모드로 부팅 설정 (Runlevel 5 / graphical.target)
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: 현재 기본 타겟 확인
+      command: systemctl get-default
+      register: current_target
+      changed_when: false
+      ignore_errors: yes
+
+    - name: GUI 모드로 기본 타겟 설정 (graphical.target)
+      command: systemctl set-default graphical.target
+      when: current_target.stdout != "graphical.target"
+      ignore_errors: yes
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 6. 바탕화면 바로가기 설정 (root 사용자)
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: root 바탕화면 디렉토리 경로 감지
+      shell: "su - root -c 'xdg-user-dir DESKTOP' 2>/dev/null || echo /root/Desktop"
+      register: root_desktop_dir
+      changed_when: false
+      ignore_errors: yes
+
+    - name: root 바탕화면 디렉토리 생성
+      file:
+        path: "{{ root_desktop_dir.stdout }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      ignore_errors: yes
+
+    - name: root - Antigravity 바로가기 아이콘 생성
+      copy:
+        dest: "{{ root_desktop_dir.stdout }}/Antigravity.desktop"
+        content: |
+          [Desktop Entry]
+          Name=Antigravity
+          Comment=Experience liftoff
+          GenericName=Text Editor
+          Exec=/usr/share/antigravity/antigravity --user-data-dir=/root/.antigravity-root --no-sandbox --disable-gpu-sandbox %F
+          Icon=antigravity
+          Type=Application
+          StartupNotify=false
+          StartupWMClass=Antigravity
+          Categories=TextEditor;Development;IDE;
+          MimeType=application/x-antigravity-workspace;
+          Actions=new-empty-window;
+          Keywords=vscode;
+
+          [Desktop Action new-empty-window]
+          Name=New Empty Window
+          Name[ko]=새 빈 창
+          Exec=/usr/share/antigravity/antigravity --user-data-dir=/root/.antigravity-root --no-sandbox --disable-gpu-sandbox --new-window %F
+          Icon=antigravity
+        owner: root
+        group: root
+        mode: '0755'
+      ignore_errors: yes
+
+    - name: root - Google Chrome 바로가기 아이콘 생성
+      copy:
+        dest: "{{ root_desktop_dir.stdout }}/google-chrome.desktop"
+        content: |
+          [Desktop Entry]
+          Version=1.0
+          Name=Google Chrome
+          GenericName=Web Browser
+          Comment=Access the Internet
+          Exec=/usr/bin/google-chrome-stable --no-sandbox %U
+          StartupNotify=true
+          Terminal=false
+          Icon=google-chrome
+          Type=Application
+          Categories=Network;WebBrowser;
+        owner: root
+        group: root
+        mode: '0755'
+      ignore_errors: yes
+
+    - name: root - VS Code 바로가기 아이콘 생성
+      copy:
+        dest: "{{ root_desktop_dir.stdout }}/code.desktop"
+        content: |
+          [Desktop Entry]
+          Name=Visual Studio Code
+          Comment=Code Editing. Redefined.
+          GenericName=Text Editor
+          Exec=/usr/share/code/code --user-data-dir=/root/.vscode-root --no-sandbox --disable-gpu-sandbox %F
+          Icon=vscode
+          Type=Application
+          StartupNotify=false
+          Categories=TextEditor;Development;IDE;
+        owner: root
+        group: root
+        mode: '0755'
+      ignore_errors: yes
+
+    - name: root - Terminal 바로가기 아이콘 생성
+      copy:
+        dest: "{{ root_desktop_dir.stdout }}/Terminal.desktop"
+        content: |
+          [Desktop Entry]
+          Name=Terminal
+          Comment=Open Terminal
+          GenericName=Terminal
+          Exec=gnome-terminal
+          Icon=utilities-terminal
+          Type=Application
+          StartupNotify=true
+          Categories=System;TerminalEmulator;
+        owner: root
+        group: root
+        mode: '0755'
+      ignore_errors: yes
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 6. 바탕화면 바로가기 설정 (ansible 사용자)
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: ansible 바탕화면 디렉토리 경로 감지
+      shell: "su - ansible -c 'xdg-user-dir DESKTOP' 2>/dev/null || echo /home/ansible/Desktop"
+      register: ansible_desktop_dir
+      changed_when: false
+      ignore_errors: yes
+
+    - name: ansible 바탕화면 디렉토리 생성
+      file:
+        path: "{{ ansible_desktop_dir.stdout }}"
+        state: directory
+        owner: ansible
+        group: ansible
+        mode: '0755'
+      ignore_errors: yes
+
+    - name: ansible - Antigravity 바로가기 아이콘 생성
+      copy:
+        dest: "{{ ansible_desktop_dir.stdout }}/Antigravity.desktop"
+        content: |
+          [Desktop Entry]
+          Name=Antigravity
+          Comment=Experience liftoff
+          GenericName=Text Editor
+          Exec=/usr/share/antigravity/antigravity --user-data-dir=/home/ansible/.antigravity --no-sandbox --disable-gpu-sandbox %F
+          Icon=antigravity
+          Type=Application
+          StartupNotify=false
+          StartupWMClass=Antigravity
+          Categories=TextEditor;Development;IDE;
+          MimeType=application/x-antigravity-workspace;
+          Actions=new-empty-window;
+          Keywords=vscode;
+
+          [Desktop Action new-empty-window]
+          Name=New Empty Window
+          Name[ko]=새 빈 창
+          Exec=/usr/share/antigravity/antigravity --user-data-dir=/home/ansible/.antigravity --no-sandbox --disable-gpu-sandbox --new-window %F
+          Icon=antigravity
+        owner: ansible
+        group: ansible
+        mode: '0755'
+      ignore_errors: yes
+
+    - name: ansible - Google Chrome 바로가기 아이콘 생성
+      copy:
+        dest: "{{ ansible_desktop_dir.stdout }}/google-chrome.desktop"
+        content: |
+          [Desktop Entry]
+          Version=1.0
+          Name=Google Chrome
+          GenericName=Web Browser
+          Comment=Access the Internet
+          Exec=/usr/bin/google-chrome-stable --no-sandbox %U
+          StartupNotify=true
+          Terminal=false
+          Icon=google-chrome
+          Type=Application
+          Categories=Network;WebBrowser;
+        owner: ansible
+        group: ansible
+        mode: '0755'
+      ignore_errors: yes
+
+    - name: ansible - VS Code 바로가기 아이콘 생성
+      copy:
+        dest: "{{ ansible_desktop_dir.stdout }}/code.desktop"
+        content: |
+          [Desktop Entry]
+          Name=Visual Studio Code
+          Comment=Code Editing. Redefined.
+          GenericName=Text Editor
+          Exec=/usr/share/code/code --user-data-dir=/home/ansible/.vscode --no-sandbox --disable-gpu-sandbox %F
+          Icon=vscode
+          Type=Application
+          StartupNotify=false
+          Categories=TextEditor;Development;IDE;
+        owner: ansible
+        group: ansible
+        mode: '0755'
+      ignore_errors: yes
+
+    - name: ansible - Terminal 바로가기 아이콘 생성
+      copy:
+        dest: "{{ ansible_desktop_dir.stdout }}/Terminal.desktop"
+        content: |
+          [Desktop Entry]
+          Name=Terminal
+          Comment=Open Terminal
+          GenericName=Terminal
+          Exec=gnome-terminal
+          Icon=utilities-terminal
+          Type=Application
+          StartupNotify=true
+          Categories=System;TerminalEmulator;
+        owner: ansible
+        group: ansible
+        mode: '0755'
+      ignore_errors: yes
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 7. 바탕화면 아이콘 신뢰 설정 (GNOME에서 실행 가능하도록)
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: root - 바탕화면 아이콘 신뢰 설정
+      shell: |
+        for desktop_file in {{ root_desktop_dir.stdout }}/*.desktop; do
+          if [ -f "$desktop_file" ]; then
+            gio set "$desktop_file" metadata::trusted true 2>/dev/null || true
+            chmod +x "$desktop_file"
+          fi
+        done
+      ignore_errors: yes
+
+    - name: ansible - 바탕화면 아이콘 신뢰 설정
+      become_user: ansible
+      shell: |
+        for desktop_file in {{ ansible_desktop_dir.stdout }}/*.desktop; do
+          if [ -f "$desktop_file" ]; then
+            gio set "$desktop_file" metadata::trusted true 2>/dev/null || true
+            chmod +x "$desktop_file"
+          fi
+        done
+      ignore_errors: yes
