@@ -68,6 +68,71 @@ configure_db_sudo() {
     done
 }
 
+configure_pc5_sudo() {
+    local PC5_SERVERS=("10.2.2.40" "10.2.2.50" "10.2.2.51" "10.2.2.60")
+    
+    echo "🔧 Configuring passwordless sudo on PC5 servers (Ops/Mon/DNS)..."
+    
+    for IP in "${PC5_SERVERS[@]}"; do
+        echo "  → $IP"
+        sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no root@$IP \
+            "echo 'ansible ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ansible && chmod 440 /etc/sudoers.d/ansible"
+        [ $? -eq 0 ] && echo "    ✅ SUCCESS" || echo "    ❌ FAIL"
+    done
+}
+
+configure_pc4_sudo() {
+    local PC4_SERVERS=("10.2.2.20" "10.2.2.21" "10.2.2.30")
+    
+    echo "🔧 Configuring passwordless sudo on PC4 servers (DB Proxy/Storage)..."
+    
+    for IP in "${PC4_SERVERS[@]}"; do
+        echo "  → $IP"
+        sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no root@$IP \
+            "echo 'ansible ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ansible && chmod 440 /etc/sudoers.d/ansible"
+        [ $? -eq 0 ] && echo "    ✅ SUCCESS" || echo "    ❌ FAIL"
+    done
+}
+
+configure_pc1_sudo() {
+    local PC1_SERVERS=("172.16.6.61" "10.2.1.2")
+    
+    echo "🔧 Configuring passwordless sudo on PC1 servers (Gateway/WAF)..."
+    
+    for IP in "${PC1_SERVERS[@]}"; do
+        echo "  → $IP"
+        sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no root@$IP \
+            "echo 'ansible ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ansible && chmod 440 /etc/sudoers.d/ansible"
+        [ $? -eq 0 ] && echo "    ✅ SUCCESS" || echo "    ❌ FAIL"
+    done
+}
+
+configure_k8s_cp_sudo() {
+    local K8S_CP_SERVERS=("10.2.2.2" "10.2.2.3" "10.2.2.4")
+    
+    echo "🔧 Configuring passwordless sudo on PC2 servers (K8S Control Plane)..."
+    
+    for IP in "${K8S_CP_SERVERS[@]}"; do
+        echo "  → $IP"
+        sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no root@$IP \
+            "echo 'ansible ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ansible && chmod 440 /etc/sudoers.d/ansible"
+        [ $? -eq 0 ] && echo "    ✅ SUCCESS" || echo "    ❌ FAIL"
+    done
+}
+
+configure_k8s_worker_sudo() {
+    local K8S_WORKER_SERVERS=("10.2.2.5" "10.2.2.6" "10.2.2.7" "10.2.2.8" "10.2.2.9" "10.2.2.10")
+    
+    echo "🔧 Configuring passwordless sudo on PC3/PC6 servers (K8S Workers)..."
+    
+    for IP in "${K8S_WORKER_SERVERS[@]}"; do
+        echo "  → $IP"
+        sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no root@$IP \
+            "echo 'ansible ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ansible && chmod 440 /etc/sudoers.d/ansible"
+        [ $? -eq 0 ] && echo "    ✅ SUCCESS" || echo "    ❌ FAIL"
+    done
+}
+
 deploy_jenkins_key_to_db() {
     if ! docker ps | grep -q jenkins; then
         echo "❌ Jenkins container not running!"
@@ -123,6 +188,14 @@ case "$MODE" in
     db-sudo)
         configure_db_sudo
         ;;
+
+    pc4-sudo)
+        configure_pc4_sudo
+        ;;
+
+    pc5-sudo)
+        configure_pc5_sudo
+        ;;
     
     jenkins-to-db)
         deploy_jenkins_key_to_db
@@ -140,6 +213,31 @@ case "$MODE" in
         echo ""
         echo "✅ All DB fixes completed!"
         ;;
+
+    all)
+        echo "═══════════════════════════════════════════════════════════════"
+        echo "Running ALL System Fixes (DB + PC1/2/3/4/5/6)..."
+        echo "═══════════════════════════════════════════════════════════════"
+        
+        # 1. DB Servers SSH Keys (via Proxy)
+        deploy_key_to_db_via_proxy
+        echo ""
+        
+        # 2. Sudo Configuration (DB, PC4, PC5, PC1, K8S)
+        configure_db_sudo
+        configure_pc4_sudo
+        configure_pc5_sudo
+        configure_pc1_sudo
+        configure_k8s_cp_sudo
+        configure_k8s_worker_sudo
+        echo ""
+        
+        # 3. Jenkins Keys to DB
+        deploy_jenkins_key_to_db
+        echo ""
+        
+        echo "✅ All system fixes completed!"
+        ;;
     
     *)
         echo "Usage: $0 <mode> [target]"
@@ -148,8 +246,11 @@ case "$MODE" in
         echo "  single <IP>      - Deploy host SSH key to single server"
         echo "  db-fix           - Deploy host SSH key to DB servers (via ProxyJump)"
         echo "  db-sudo          - Configure passwordless sudo on DB servers"
+        echo "  pc4-sudo         - Configure passwordless sudo on PC4 servers (DBProxy/Storage)"
+        echo "  pc5-sudo         - Configure passwordless sudo on PC5 servers (Ops/Mon/DNS)"
         echo "  jenkins-to-db    - Deploy Jenkins container key to DB servers"
         echo "  all-db           - Run all DB fixes (keys + sudo + jenkins)"
+        echo "  all              - Run ALL setup steps (DB keys, all sudo configs, Jenkins keys)"
         exit 1
         ;;
 esac
