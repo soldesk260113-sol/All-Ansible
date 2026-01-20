@@ -33,6 +33,9 @@ pipeline {
         }
 
         stage('Dry Run (Simulation)') {
+            when {
+                expression { return params.DRY_RUN == true }
+            }
             steps {
                 script {
                     echo "📦 Ansible 필수 모듈 설치 중..."
@@ -51,7 +54,7 @@ pipeline {
             steps {
                 script {
                     // 웹훅으로 자동 실행되었을 때도 여기서 멈춰서 사람의 승인을 기다립니다.
-                    input message: "Dry Run 결과를 확인하셨나요? '${params.PLAYBOOK}'를 실제로 배포하시겠습니까?", ok: "🚀 배포 승인 (Deploy)"
+                    input message: "'${params.PLAYBOOK}'를 실제로 배포하시겠습니까?", ok: "🚀 배포 승인 (Deploy)"
                 }
             }
         }

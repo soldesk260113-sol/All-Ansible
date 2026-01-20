@@ -40,17 +40,17 @@ for ip in "${SERVERS[@]}"; do
     echo -n ">> Processing $ip ... "
     
     # 10.2.3.x 서브넷은 프록시 사용 (-J 옵션 사용)
-    if [[ "$ip" == 10.2.3.* ]]; then -o UserKnownHostsFile=/dev/null -o ProxyJump=root@10.2.2.20'
-1
+    if [[ "$ip" == 10.2.3.* ]]; then
         SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=3 -J root@$PROXY_HOST"
     else
         SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=3"
     fi
     
     # 1. Firewalld 켜기 및 자동 시작 설정
+    # systemctl unmask firewalld : 마스킹 해제 (필요시)
     # systemctl enable --now firewalld : 지금 즉시 켜고(Start), 재부팅 시 자동 실행(Enable) 설정
     sshpass -p "$PASSWORD" ssh $SSH_OPTS root@$ip \
-    "systemctl enable --now firewalld" > /dev/null 2>&1
+    "systemctl unmask firewalld; systemctl enable --now firewalld" > /dev/null 2>&1
     
     # 2. 상태 확인
     sshpass -p "$PASSWORD" ssh $SSH_OPTS root@$ip "systemctl is-active firewalld" > /dev/null 2>&1

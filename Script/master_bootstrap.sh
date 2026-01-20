@@ -53,7 +53,7 @@ run_step() {
 }
 
 # 1. PC5 초기화
-run_step "PC5(Ops) 초기화 & Ansible 설치" "init_ops_ansible.sh" ""
+# run_step "PC5(Ops) 초기화 & Ansible 설치" "init_ops_ansible.sh" ""
 
 # 2. VM SSH 키 배포 (Root)
 run_step "Root SSH 키 배포 (root -> root)" "vm_distribute_ssh_root.sh" ""
@@ -65,15 +65,15 @@ run_step "Ansible SSH 키 배포 (ansible -> ansible)" "vm_distribute_ssh_ansibl
 run_step "전체 서버 Firewalld 활성화" "allserver_firewallon.sh" ""
 
 # 5. Jenkins SSH 키 배포 (Root) - 주의: Jenkins 배포 후 실행해야 함
-# echo "🚧 [Skip] Jenkins가 아직 배포되지 않았으므로 건너뜁니다."
-# run_step "Jenkins SSH 키 배포 (Jenkins -> root)" "jenkins_distribute_ssh_root.sh" ""
+echo "🚧 [Skip] Jenkins가 아직 배포되지 않았으므로 건너뜁니다."
+run_step "Jenkins SSH 키 배포 (Jenkins -> root)" "jenkins_distribute_ssh_root.sh" ""
 
 # 6. Jenkins SSH 키 배포 (Ansible) - 주의: Jenkins 배포 후 실행해야 함
-# echo "🚧 [Skip] Jenkins가 아직 배포되지 않았으므로 건너뜁니다."
-# run_step "Jenkins SSH 키 배포 (Jenkins -> ansible)" "jenkins_distribute_ssh_ansible.sh" ""
+echo "🚧 [Skip] Jenkins가 아직 배포되지 않았으므로 건너뜁니다."
+run_step "Jenkins SSH 키 배포 (Jenkins -> ansible)" "jenkins_distribute_ssh_ansible.sh" ""
 
 # 7. DB 구성용 SSH 배포
-# run_step "DB 서버 SSH 구성 (ssh_deploy.sh)" "ssh_deploy.sh" "all-db"
+run_step "DB 서버 SSH 구성 (ssh_deploy.sh)" "ssh_deploy.sh" "all-db"
 
 # 8. Ping Test
 run_step "최종 연결 테스트 (Ping)" "pingtest.sh" ""
