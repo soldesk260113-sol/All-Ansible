@@ -41,35 +41,47 @@
       hostname:
         name: "{{ tier_prefix }}-{{ inventory_hostname | replace('_', '-') }}"
 
-    - name: Bash 프롬프트 색상 설정 (Tier별 자동 지정)
+    - name: Prompt 색상 계산 (Host별 Round-Robin)
+      set_fact:
+        prompt_color: "{{ 91 + (groups['All_Nodes'].index(inventory_hostname) % 6) }}"
+
+    - name: 기존 Bash 프롬프트 설정 제거 (root)
+      replace:
+        path: /root/.bashrc
+        regexp: '^(\s*)(export\s+)?PS1=.*'
+        replace: ''
+      ignore_errors: yes
+
+    - name: Bash 프롬프트 색상 설정 (root)
       blockinfile:
         path: /root/.bashrc
         marker: "# {mark} ANSIBLE MANAGED PROMPT COLOR"
         content: |
-          # Tier-based Prompt Color
-          # PC1(Red), PC2(Green), PC3(Yellow), PC4(Blue), PC5(Purple), PC6(Cyan)
-          case "$(hostname)" in
-            PC1*) COLOR="91" ;; # Red
-            PC2*) COLOR="92" ;; # Green
-            PC3*) COLOR="93" ;; # Yellow
-            PC4*) COLOR="94" ;; # Blue
-            PC5*) COLOR="95" ;; # Purple
-            PC6*) COLOR="96" ;; # Cyan
-            *)    COLOR="0"  ;; # Default
-          esac
-          
-          export PS1="\[\e[${COLOR};1m\][\u@\h\[\e[33;1m\] \w]\$ \[\e[m\]"
+          # Host-based Unique Prompt Color
+          export PS1="\[\e[{{ prompt_color }};1m\][\u@\h\[\e[33;1m\] \w]\$ \[\e[m\]"
           alias c='clear'
           alias rm='rm -i'
           alias cp='cp -i'
           alias mv='mv -i'
 
-    - name: 배포 - pingtest.sh (연결 테스트 스크립트)
-      copy:
-        src: "{{ playbook_dir }}/../Script/pingtest.sh"
-        dest: /usr/local/bin/pingtest.sh
-        mode: '0755'
+    - name: 기존 Bash 프롬프트 설정 제거 (ansible)
+      replace:
+        path: /home/ansible/.bashrc
+        regexp: '^(\s*)(export\s+)?PS1=.*'
+        replace: ''
+      ignore_errors: yes
 
+    - name: Bash 프롬프트 색상 설정 (ansible)
+      blockinfile:
+        path: /home/ansible/.bashrc
+        marker: "# {mark} ANSIBLE MANAGED PROMPT COLOR"
+        content: |
+          # Host-based Unique Prompt Color
+          export PS1="\[\e[{{ prompt_color }};1m\][\u@\h\[\e[33;1m\] \w]\$ \[\e[m\]"
+          alias c='clear'
+          alias rm='rm -i'
+          alias cp='cp -i'
+          alias mv='mv -i'
 
 # ═══════════════════════════════════════════════════════════════════════════
 # [추가 설정] GUI 및 데스크탑 환경 조성 (Chrome, VSCode, Antigravity, Shortcuts)
@@ -218,7 +230,7 @@
       ignore_errors: yes
 
     # ─────────────────────────────────────────────────────────────────────────
-    # 6. 바탕화면 바로가기 설정 (root 사용자)
+    # 6. 바탕화면 바로가기 설정 (통합 - Root & Ansible)
     # ─────────────────────────────────────────────────────────────────────────
     - name: root 바탕화면 디렉토리 경로 감지
       shell: "su - root -c 'xdg-user-dir DESKTOP' 2>/dev/null || echo /root/Desktop"
@@ -235,93 +247,6 @@
         mode: '0755'
       ignore_errors: yes
 
-    - name: root - Antigravity 바로가기 아이콘 생성
-      copy:
-        dest: "{{ root_desktop_dir.stdout }}/Antigravity.desktop"
-        content: |
-          [Desktop Entry]
-          Name=Antigravity
-          Comment=Experience liftoff
-          GenericName=Text Editor
-          Exec=/usr/share/antigravity/antigravity --user-data-dir=/root/.antigravity-root --no-sandbox --disable-gpu-sandbox %F
-          Icon=antigravity
-          Type=Application
-          StartupNotify=false
-          StartupWMClass=Antigravity
-          Categories=TextEditor;Development;IDE;
-          MimeType=application/x-antigravity-workspace;
-          Actions=new-empty-window;
-          Keywords=vscode;
-
-          [Desktop Action new-empty-window]
-          Name=New Empty Window
-          Name[ko]=새 빈 창
-          Exec=/usr/share/antigravity/antigravity --user-data-dir=/root/.antigravity-root --no-sandbox --disable-gpu-sandbox --new-window %F
-          Icon=antigravity
-        owner: root
-        group: root
-        mode: '0755'
-      ignore_errors: yes
-
-    - name: root - Google Chrome 바로가기 아이콘 생성
-      copy:
-        dest: "{{ root_desktop_dir.stdout }}/google-chrome.desktop"
-        content: |
-          [Desktop Entry]
-          Version=1.0
-          Name=Google Chrome
-          GenericName=Web Browser
-          Comment=Access the Internet
-          Exec=/usr/bin/google-chrome-stable --no-sandbox %U
-          StartupNotify=true
-          Terminal=false
-          Icon=google-chrome
-          Type=Application
-          Categories=Network;WebBrowser;
-        owner: root
-        group: root
-        mode: '0755'
-      ignore_errors: yes
-
-    - name: root - VS Code 바로가기 아이콘 생성
-      copy:
-        dest: "{{ root_desktop_dir.stdout }}/code.desktop"
-        content: |
-          [Desktop Entry]
-          Name=Visual Studio Code
-          Comment=Code Editing. Redefined.
-          GenericName=Text Editor
-          Exec=/usr/share/code/code --user-data-dir=/root/.vscode-root --no-sandbox --disable-gpu-sandbox %F
-          Icon=vscode
-          Type=Application
-          StartupNotify=false
-          Categories=TextEditor;Development;IDE;
-        owner: root
-        group: root
-        mode: '0755'
-      ignore_errors: yes
-
-    - name: root - Terminal 바로가기 아이콘 생성
-      copy:
-        dest: "{{ root_desktop_dir.stdout }}/Terminal.desktop"
-        content: |
-          [Desktop Entry]
-          Name=Terminal
-          Comment=Open Terminal
-          GenericName=Terminal
-          Exec=gnome-terminal
-          Icon=utilities-terminal
-          Type=Application
-          StartupNotify=true
-          Categories=System;TerminalEmulator;
-        owner: root
-        group: root
-        mode: '0755'
-      ignore_errors: yes
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # 6. 바탕화면 바로가기 설정 (ansible 사용자)
-    # ─────────────────────────────────────────────────────────────────────────
     - name: ansible 바탕화면 디렉토리 경로 감지
       shell: "su - ansible -c 'xdg-user-dir DESKTOP' 2>/dev/null || echo /home/ansible/Desktop"
       register: ansible_desktop_dir
@@ -337,15 +262,29 @@
         mode: '0755'
       ignore_errors: yes
 
-    - name: ansible - Antigravity 바로가기 아이콘 생성
+    - name: Desktop Setup Fact 정의
+      set_fact:
+        desktop_users:
+          - user: root
+            group: root
+            home: /root
+            desktop: "{{ root_desktop_dir.stdout }}"
+            data_suffix: "-root"
+          - user: ansible
+            group: ansible
+            home: /home/ansible
+            desktop: "{{ ansible_desktop_dir.stdout }}"
+            data_suffix: ""
+
+    - name: Antigravity 바로가기 아이콘 생성 (통합 Loop)
       copy:
-        dest: "{{ ansible_desktop_dir.stdout }}/Antigravity.desktop"
+        dest: "{{ item.desktop }}/Antigravity.desktop"
         content: |
           [Desktop Entry]
           Name=Antigravity
           Comment=Experience liftoff
           GenericName=Text Editor
-          Exec=/usr/share/antigravity/antigravity --user-data-dir=/home/ansible/.antigravity --no-sandbox --disable-gpu-sandbox %F
+          Exec=/usr/share/antigravity/antigravity --user-data-dir={{ item.home }}/.antigravity{{ item.data_suffix }} --no-sandbox --disable-gpu-sandbox %F
           Icon=antigravity
           Type=Application
           StartupNotify=false
@@ -358,16 +297,17 @@
           [Desktop Action new-empty-window]
           Name=New Empty Window
           Name[ko]=새 빈 창
-          Exec=/usr/share/antigravity/antigravity --user-data-dir=/home/ansible/.antigravity --no-sandbox --disable-gpu-sandbox --new-window %F
+          Exec=/usr/share/antigravity/antigravity --user-data-dir={{ item.home }}/.antigravity{{ item.data_suffix }} --no-sandbox --disable-gpu-sandbox --new-window %F
           Icon=antigravity
-        owner: ansible
-        group: ansible
+        owner: "{{ item.user }}"
+        group: "{{ item.group }}"
         mode: '0755'
+      loop: "{{ desktop_users }}"
       ignore_errors: yes
 
-    - name: ansible - Google Chrome 바로가기 아이콘 생성
+    - name: Google Chrome 바로가기 아이콘 생성 (통합 Loop)
       copy:
-        dest: "{{ ansible_desktop_dir.stdout }}/google-chrome.desktop"
+        dest: "{{ item.desktop }}/google-chrome.desktop"
         content: |
           [Desktop Entry]
           Version=1.0
@@ -380,32 +320,34 @@
           Icon=google-chrome
           Type=Application
           Categories=Network;WebBrowser;
-        owner: ansible
-        group: ansible
+        owner: "{{ item.user }}"
+        group: "{{ item.group }}"
         mode: '0755'
+      loop: "{{ desktop_users }}"
       ignore_errors: yes
 
-    - name: ansible - VS Code 바로가기 아이콘 생성
+    - name: VS Code 바로가기 아이콘 생성 (통합 Loop)
       copy:
-        dest: "{{ ansible_desktop_dir.stdout }}/code.desktop"
+        dest: "{{ item.desktop }}/code.desktop"
         content: |
           [Desktop Entry]
           Name=Visual Studio Code
           Comment=Code Editing. Redefined.
           GenericName=Text Editor
-          Exec=/usr/share/code/code --user-data-dir=/home/ansible/.vscode --no-sandbox --disable-gpu-sandbox %F
+          Exec=/usr/share/code/code --user-data-dir={{ item.home }}/.vscode{{ item.data_suffix }} --no-sandbox --disable-gpu-sandbox %F
           Icon=vscode
           Type=Application
           StartupNotify=false
           Categories=TextEditor;Development;IDE;
-        owner: ansible
-        group: ansible
+        owner: "{{ item.user }}"
+        group: "{{ item.group }}"
         mode: '0755'
+      loop: "{{ desktop_users }}"
       ignore_errors: yes
 
-    - name: ansible - Terminal 바로가기 아이콘 생성
+    - name: Terminal 바로가기 아이콘 생성 (통합 Loop)
       copy:
-        dest: "{{ ansible_desktop_dir.stdout }}/Terminal.desktop"
+        dest: "{{ item.desktop }}/Terminal.desktop"
         content: |
           [Desktop Entry]
           Name=Terminal
@@ -416,31 +358,23 @@
           Type=Application
           StartupNotify=true
           Categories=System;TerminalEmulator;
-        owner: ansible
-        group: ansible
+        owner: "{{ item.user }}"
+        group: "{{ item.group }}"
         mode: '0755'
+      loop: "{{ desktop_users }}"
       ignore_errors: yes
 
     # ─────────────────────────────────────────────────────────────────────────
     # 7. 바탕화면 아이콘 신뢰 설정 (GNOME에서 실행 가능하도록)
     # ─────────────────────────────────────────────────────────────────────────
-    - name: root - 바탕화면 아이콘 신뢰 설정
+    - name: 바탕화면 아이콘 신뢰 설정 (통합)
       shell: |
-        for desktop_file in {{ root_desktop_dir.stdout }}/*.desktop; do
+        for desktop_file in {{ item.desktop }}/*.desktop; do
           if [ -f "$desktop_file" ]; then
             gio set "$desktop_file" metadata::trusted true 2>/dev/null || true
             chmod +x "$desktop_file"
           fi
         done
-      ignore_errors: yes
-
-    - name: ansible - 바탕화면 아이콘 신뢰 설정
-      become_user: ansible
-      shell: |
-        for desktop_file in {{ ansible_desktop_dir.stdout }}/*.desktop; do
-          if [ -f "$desktop_file" ]; then
-            gio set "$desktop_file" metadata::trusted true 2>/dev/null || true
-            chmod +x "$desktop_file"
-          fi
-        done
+      become_user: "{{ item.user }}"
+      loop: "{{ desktop_users }}"
       ignore_errors: yes

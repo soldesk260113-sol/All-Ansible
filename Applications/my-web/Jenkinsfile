@@ -3,7 +3,7 @@ pipeline {
     
     environment {
         HARBOR_HOST = '10.2.2.40:5000'
-        IMAGE_NAME = 'my-web'
+        IMAGE_NAME = 'integrated-dashboard'
         GITEA_HOST = '10.2.2.40:3001'
     }
     

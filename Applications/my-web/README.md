@@ -50,7 +50,7 @@ curl http://localhost:3000/health
 ```
 URL: http://10.2.2.40:5000
 Login: admin / Admin123
-Projects → library → myapp
+Projects → library → integrated-dashboard
 ```
 
 ### 다른 서버에서 사용
@@ -68,15 +68,58 @@ systemctl restart docker
 docker login 10.2.2.40:5000 -u admin -p Admin123
 
 # 이미지 Pull
-docker pull 10.2.2.40:5000/library/myapp:latest
+docker pull 10.2.2.40:5000/library/integrated-dashboard:latest
 
 # 실행
-docker run -d -p 8080:3000 --name myapp \
+docker run -d -p 8080:3000 --name my-web \
   --restart=always \
-  10.2.2.40:5000/library/myapp:latest
+  10.2.2.40:5000/library/integrated-dashboard:latest
 
 # 확인
 curl http://localhost:8080/health
+```
+
+## ☸️ Helm & ArgoCD (GitOps)
+
+이 프로젝트는 Helm Chart로 패키징되어 ArgoCD를 통해 배포됩니다.
+
+### Helm Chart 구조
+
+```
+helm/
+├── Chart.yaml       # 차트 메타데이터
+├── values.yaml      # 기본 설정 (Image, Port 등)
+└── templates/       # Kubernetes 리소스 템플릿
+```
+
+### 배포 설정 (`values.yaml`)
+
+```yaml
+image:
+  repository: 10.2.2.40:5000/library/integrated-dashboard
+  tag: "latest"
+service:
+  type: NodePort
+  targetPort: 3000
+```
+
+### ArgoCD 동기화
+
+1. ArgoCD 접속: https://172.16.6.61:30443 (또는 NodePort)
+2. `my-web` 애플리케이션 선택
+3. **Sync** 버튼 클릭하여 최신 상태 반영
+
+### 접속 방법 (Ingress)
+
+Ingress가 생성되면 다음 호스트로 접속할 수 있습니다.
+(Host 파일 또는 DNS에 `10.2.2.101`이 등록되어 있어야 합니다.)
+
+- **URL**: `http://my-web.antigravity.local`
+- **VIP**: `10.2.2.101`
+
+```bash
+# 테스트
+curl -H "Host: my-web.antigravity.local" http://10.2.2.101
 ```
 
 ## 📁 프로젝트 구조
@@ -87,11 +130,11 @@ myapp/
 │   └── index.js          # 메인 애플리케이션
 ├── tests/
 │   └── app.test.js       # 테스트
-├── k8s_manifests/        # Kubernetes 매니페스트 (참고용)
-│   ├── namespace.yaml
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   └── ingress.yaml
+├── helm/                 # Helm Chart (GitOps)
+│   ├── Chart.yaml
+│   ├── values.yaml
+│   └── templates/
+├── k8s_manifests/        # Kubernetes 매니페스트 (레거시/참고용)
 ├── Dockerfile            # Docker 이미지 빌드
 ├── Jenkinsfile           # Jenkins 파이프라인
 ├── package.json          # Node.js 의존성
@@ -107,14 +150,14 @@ myapp/
 ## 🛠️ API 엔드포인트
 
 - `GET /` - 홈페이지
-- `GET /health` - Health check
+- `GET /health` - Health check (Liveness)
 - `GET /ready` - Readiness check
 - `GET /api/info` - 애플리케이션 정보
 
 ## 📦 Harbor 이미지 태그
 
-- `latest` - 최신 빌드
-- `<BUILD_NUMBER>` - 특정 빌드 번호 (예: 42)
+- `latest` - CD 파이프라인에 의해 빌드된 최신 이미지
+- `<BUILD_NUMBER>` - Jenkins 빌드 번호
 
 ## 🔗 관련 링크
 
