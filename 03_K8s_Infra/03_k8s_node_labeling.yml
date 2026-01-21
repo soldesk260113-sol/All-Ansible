@@ -11,8 +11,8 @@
     - name: Label Worker Node 2 (Energy)
       command: kubectl label nodes k8s-workernode2 role=energy --overwrite
 
-    - name: Label Worker Node 3 (Map - Reserved)
-      command: kubectl label nodes k8s-workernode3 role=map --overwrite
+    - name: Label Worker Node 3 (argocd - Management)
+      command: kubectl label nodes k8s-workernode3 role=argocd --overwrite
 
     - name: Label Worker Node 4 (Web)
       command: kubectl label nodes k8s-workernode4 role=web --overwrite
@@ -20,7 +20,7 @@
     - name: Label Worker Node 5 (Gateway - Reserved)
       command: kubectl label nodes k8s-workernode5 role=gateway --overwrite
 
-    - name: Label Worker Node 6 (OAuth - Reserved)
+    - name: Label Worker Node 6 (OAuth - Global)
       command: kubectl label nodes k8s-workernode6 role=oauth --overwrite
       
     - name: Verify Labels
