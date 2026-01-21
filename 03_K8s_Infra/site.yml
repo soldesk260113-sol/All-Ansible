@@ -4,3 +4,4 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 - import_playbook: 02_k8s_install.yml
+- import_playbook: 03_k8s_node_labeling.yml
