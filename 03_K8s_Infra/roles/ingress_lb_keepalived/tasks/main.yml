@@ -1,0 +1,17 @@
+---
+- name: Install Keepalived
+  yum:
+    name: keepalived
+    state: present
+
+- name: Configure Keepalived
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+  notify: Restart Keepalived
+
+- name: Start and enable Keepalived
+  service:
+    name: keepalived
+    state: started
+    enabled: true

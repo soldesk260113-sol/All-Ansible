@@ -1,0 +1,20 @@
+global_defs {
+  router_id {{ keepalived_router_id | default(inventory_hostname) }}
+}
+
+vrrp_instance {{ vrrp.name }} {
+  state {{ vrrp.state | default('BACKUP') }}
+  interface {{ vrrp.interface }}
+  virtual_router_id {{ vrrp.vrid }}
+  priority {{ vrrp.priority }}
+  advert_int {{ vrrp.advert_int | default(1) }}
+
+  authentication {
+    auth_type PASS
+    auth_pass {{ vrrp.auth_pass }}
+  }
+
+  virtual_ipaddress {
+    {{ vrrp.vip }}
+  }
+}

@@ -1,0 +1,27 @@
+vrrp_script chk_haproxy {
+    script "killall -0 haproxy"
+    interval 2
+    weight 2
+    script_user root
+}
+
+vrrp_instance VI_1 {
+    state {{ ingress_lb_state }}
+    interface {{ ingress_lb_interface }}
+    virtual_router_id {{ ingress_lb_vrid }}
+    priority {{ ingress_lb_priority }}
+    advert_int 1
+
+    authentication {
+        auth_type PASS
+        auth_pass {{ ingress_lb_auth_pass }}
+    }
+
+    virtual_ipaddress {
+        {{ ingress_lb_vip }}
+    }
+
+    track_script {
+        chk_haproxy
+    }
+}

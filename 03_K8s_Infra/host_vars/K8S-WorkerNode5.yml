@@ -6,3 +6,17 @@ nic1_interface: ens160
 nic1_ip_address: 10.2.2.9
 nic1_netmask: 255.255.255.0
 nic1_gateway: 10.2.2.1
+
+# Ingress VIP (Pair with WN3) - MASTER
+keepalived_router_id: WN5_INGRESS_VIP
+vrrp:
+  name: VI_INGRESS
+  interface: ens160
+  vrid: 200
+  priority: 160
+  auth_pass: ingvip01
+  vip: 10.2.2.101/24
+
+# Ingress LB (Cluster WN4/5/6) - BACKUP - DEPRECATED via user request
+# ingress_lb_state: BACKUP
+# ingress_lb_priority: 100

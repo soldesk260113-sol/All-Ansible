@@ -6,3 +6,7 @@ nic1_interface: ens160
 nic1_ip_address: 10.2.2.10
 nic1_netmask: 255.255.255.0
 nic1_gateway: 10.2.2.1
+
+# Ingress LB (Cluster WN4/5/6) - BACKUP - DEPRECATED via user request
+# ingress_lb_state: BACKUP
+# ingress_lb_priority: 100

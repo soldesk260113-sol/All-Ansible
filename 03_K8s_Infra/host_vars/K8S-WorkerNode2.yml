@@ -6,3 +6,13 @@ nic1_interface: ens160
 nic1_ip_address: 10.2.2.6
 nic1_netmask: 255.255.255.0
 nic1_gateway: 10.2.2.1
+
+# API VIP (Pair with WN1) - BACKUP
+api_vip_router_id: WN2_API_VIP
+vrrp:
+  name: VI_API
+  interface: ens160
+  vrid: 201
+  priority: 100
+  auth_pass: apivip01
+  vip: 10.2.2.253/24

@@ -1,0 +1,6 @@
+---
+- name: Configure Ingress VIP (WN3/WN5 HA Pair)
+  hosts: ingress_vip
+  become: true
+  roles:
+    - ingress_vip_keepalived

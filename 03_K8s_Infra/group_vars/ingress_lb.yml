@@ -1,0 +1,12 @@
+---
+ingress_lb_vrid: 51
+ingress_lb_vip: "10.2.2.101"
+ingress_lb_auth_pass: "1111"
+
+haproxy_backend_servers:
+  - name: worker1
+    address: "10.2.2.5:30080"
+  - name: worker2
+    address: "10.2.2.6:30080"
+  - name: worker3
+    address: "10.2.2.7:30080"

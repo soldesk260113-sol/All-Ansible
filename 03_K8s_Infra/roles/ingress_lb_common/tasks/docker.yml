@@ -1,0 +1,38 @@
+---
+- name: Remove any existing docker/podman packages
+  yum:
+    name:
+      - docker
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - podman
+      - podman-docker
+      - cockpit-podman
+    state: absent
+
+- name: Add Docker CE repository
+  get_url:
+    url: https://download.docker.com/linux/centos/docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
+
+- name: Install Docker CE
+  yum:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+    state: present
+
+- name: Check docker service exists
+  stat:
+    path: /usr/lib/systemd/system/docker.service
+  register: docker_service
+
+- name: Enable and start Docker
+  service:
+    name: docker
+    state: started
+    enabled: true
+  when: docker_service.stat.exists
+

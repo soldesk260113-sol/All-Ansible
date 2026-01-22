@@ -1,0 +1,8 @@
+---
+ingress_lb_interface: ens160
+ingress_lb_vrid: 51
+ingress_lb_vip: "10.2.2.100"
+ingress_lb_auth_pass: "1111"
+# Master/Backup specific variables - should be overridden in inventory
+ingress_lb_state: BACKUP
+ingress_lb_priority: 100
