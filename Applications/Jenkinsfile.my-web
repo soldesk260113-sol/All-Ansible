@@ -1,0 +1,61 @@
+pipeline {
+    agent any
+    
+    // ✅ 파라미터 추가: 배포할 태그를 직접 입력받음 (기본값: latest)
+    parameters {
+        string(name: 'IMAGE_TAG', defaultValue: 'latest', description: '배포할 Harbor 이미지 태그를 입력하세요 (예: latest, 1, v1.0)')
+    }
+    
+    environment {
+        // Harbor 호스트 정보 등은 그대로 둠
+        GITEA_HOST = '10.2.2.40:3001'
+    }
+    
+    stages {
+        // ❌ [1단계: 빌드] 삭제됨 
+        
+        // [2단계] Helm Chart 버전 업데이트 (이것만 실행)
+        stage('Update Helm Chart') {
+            steps {
+                echo "☸️ Harbor에 있는 이미지(${params.IMAGE_TAG})로 배포 설정을 업데이트합니다."
+                
+                sh """
+                    ssh -i /var/jenkins_home/.ssh/id_rsa -o StrictHostKeyChecking=no root@10.2.2.40 '
+                        set -e
+                        
+                        # 1. 작업 공간 준비
+                        rm -rf /tmp/gitops_myweb && mkdir -p /tmp/gitops_myweb
+                        cd /tmp/gitops_myweb
+                        
+                        # 2. Helm 저장소 가져오기
+                        git clone http://jenkins:JenkinsPass123@${GITEA_HOST}/admin/myapp-helm.git .
+                        
+                        git config user.email "jenkins@antigravity.local"
+                        git config user.name "Jenkins CI"
+                        
+                        # 3. values.yaml 수정 (입력받은 태그로 변경)
+                        # my-web 경로의 values.yaml을 수정합니다.
+                        sed -i "s/tag: .*/tag: \\"${params.IMAGE_TAG}\\"/" my-web/helm/values.yaml
+                        
+                        # 4. 변경사항 확인 및 커밋
+                        grep "tag:" my-web/helm/values.yaml
+                        
+                        git add my-web/helm/values.yaml
+                        
+                        # 변경된 내용이 있을 때만 Git에 올림
+                        if ! git diff-index --quiet HEAD; then
+                            git commit -m "Deploy integrated-dashboard image tag: ${params.IMAGE_TAG}"
+                            git push http://jenkins:JenkinsPass123@${GITEA_HOST}/admin/myapp-helm.git main
+                            echo "✅ Helm Chart 업데이트 완료! ArgoCD가 곧 배포합니다."
+                        else
+                            echo "⚠️ 변경 사항 없음 (이미 해당 태그로 설정되어 있습니다)"
+                        fi
+                        
+                        # 5. 정리
+                        rm -rf /tmp/gitops_myweb
+                    '
+                """
+            }
+        }
+    }
+}
