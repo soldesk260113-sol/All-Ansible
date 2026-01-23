@@ -1,0 +1,19 @@
+<VirtualHost *:443>
+    ServerName {{ waf_servername }}
+
+    SSLEngine on
+    SSLCertificateFile {{ waf_cert }}
+    SSLCertificateKeyFile {{ waf_key }}
+
+    SSLProtocol -all +TLSv1.2 +TLSv1.3
+    SSLCipherSuite HIGH:!aNULL:!MD5:!3DES
+    SSLHonorCipherOrder on
+    SSLCompression off
+
+    ProxyPass / {{ waf_backend }}
+    ProxyPassReverse / {{ waf_backend }}
+
+    <IfModule security2_module>
+        SecRuleEngine {{ waf_rule_engine }}
+    </IfModule>
+</VirtualHost>

@@ -7,3 +7,4 @@
 - import_playbook: 03_k8s_node_labeling.yml
 - import_playbook: 03_01_ingress_vip.yml
 - import_playbook: 03_03_api_vip.yml
+- import_playbook: 03_04_ingress_controller.yml

@@ -89,8 +89,12 @@
     - { port: 30080, toport: 30080, toaddr: "10.2.2.8" }
     - { port: 30090, toport: 30090, toaddr: "10.2.2.8" }
 
-    # ArgoCD NodePort (임시: cp1로 포워딩 / 최종엔 worker로 교체)
-    - { port: 31372, toport: 31372, toaddr: "10.2.2.2" }
+    
+    # 만약 Ingress VIP (High Availability) 사용한다면 아래 주석 처리된 부분을 사용.
+    # - { port: 32177, toport: 32177, toaddr: "10.2.2.101" }
+    
+    # ArgoCD NodePort 이것 또한 임시 (Fixed: 32177 -> WN3)
+    - { port: 32177, toport: 32177, toaddr: "10.2.2.7" }
   register: r_fwd_ports
   failed_when: false
   changed_when: "'success' in (r_fwd_ports.stdout | lower)"

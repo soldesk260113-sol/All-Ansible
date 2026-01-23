@@ -5,8 +5,8 @@
   shell: |
     set -e
     dnf -y install epel-release || true
-    dnf -y install httpd firewalld mod_security mod_security_crs || \
-    dnf -y install httpd firewalld mod_security mod_security_crs-core || true
+    dnf -y install httpd firewalld mod_ssl mod_security mod_security_crs || \
+    dnf -y install httpd firewalld mod_ssl mod_security mod_security_crs-core || true
   changed_when: false
 
 - name: Enable and start firewalld
@@ -23,6 +23,28 @@
 
 - name: Reload firewalld
   command: firewall-cmd --reload
+
+# -----------------------------
+# TLS cert 준비 (없으면 self-signed 생성)
+# -----------------------------
+- name: Check cert/key exist
+  stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ waf_cert }}"
+    - "{{ waf_key }}"
+  register: r_tls
+
+- name: Generate self-signed cert if missing
+  command: >
+    openssl req -x509 -newkey rsa:2048 -nodes
+    -keyout {{ waf_key }}
+    -out {{ waf_cert }}
+    -days 365
+    -subj "/CN={{ waf_servername }}"
+  when: >
+    (r_tls.results[0].stat.exists == false) or
+    (r_tls.results[1].stat.exists == false)
 
 # CRS 룰 경로 자동 탐색 + activated_rules에 심링크 활성화
 - name: Activate OWASP CRS rules into activated_rules (symlink)
@@ -76,8 +98,24 @@
   shell: |
     set -e
     CONF="/etc/httpd/conf.d/mod_security.conf"
-    sed -ri 's/^\s*SecRuleEngine\s+.*/SecRuleEngine DetectionOnly/I' "$CONF" || true
     grep -qi '^\s*SecRuleEngine' "$CONF" || echo 'SecRuleEngine DetectionOnly' >> "$CONF"
+
+- name: Deploy security headers include
+  copy:
+    src: security-headers.conf
+    dest: /etc/httpd/conf.d/security-headers.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy SSL WAF vhost (reverse proxy to ingress vip)
+  template:
+    src: ssl-waf.conf.j2
+    dest: /etc/httpd/conf.d/ssl-waf.conf
+    owner: root
+    group: root
+    mode: "0644"
+
 
 - name: Apache configtest
   command: apachectl configtest

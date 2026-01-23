@@ -1,0 +1,29 @@
+---
+# ═══════════════════════════════════════════════════════════════════════════
+# Playbook 03-04: Deploy Ingress Controller (NGINX)
+# ═══════════════════════════════════════════════════════════════════════════
+- name: NGINX Ingress Controller 배포
+  hosts: K8S_Primary_Master
+  become: yes
+  tasks:
+    - name: Ingress-Nginx 네임스페이스 생성
+      shell: kubectl create namespace ingress-nginx --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Ingress-Nginx 설치 (BareMetal/NodePort Manifest)
+      shell: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/baremetal/deploy.yaml
+      register: r_install
+      changed_when: "'configured' in r_install.stdout or 'created' in r_install.stdout"
+
+    # 중요: HAProxy가 30080(HTTP)을 가리키므로, Ingress Service 포트를 강제로 고정.
+    # HTTPS는 30443으로 고정.
+    - name: Ingress Service NodePort 고정 (HTTP:30080, HTTPS:30443)
+      shell: |
+        kubectl patch svc ingress-nginx-controller -n ingress-nginx --type='merge' -p '{"spec": {"ports": [{"name": "http", "port": 80, "protocol": "TCP", "targetPort": "http", "nodePort": 30080}, {"name": "https", "port": 443, "protocol": "TCP", "targetPort": "https", "nodePort": 30443}]}}'
+
+    - name: Ingress Controller 상태 확인 안내
+      debug:
+        msg: 
+          - "Ingress Controller가 설치되었습니다."
+          - "HTTP Port: 30080 (HAProxy 연동됨)"
+          - "HTTPS Port: 30443"
+          - "Test: curl http://10.2.2.5:30080"

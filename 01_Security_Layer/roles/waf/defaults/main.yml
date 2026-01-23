@@ -1,2 +1,7 @@
 ---
-# defaults file for roles/waf
+# defaults/main.yml
+waf_servername: "waf.local"
+waf_backend: "http://10.2.2.101/"
+waf_rule_engine: "DetectionOnly"
+waf_cert: "/etc/pki/tls/certs/waf.crt"
+waf_key: "/etc/pki/tls/private/waf.key"
