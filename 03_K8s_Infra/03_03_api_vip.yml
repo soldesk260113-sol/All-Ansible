@@ -1,6 +1,7 @@
 ---
-- name: Configure API VIP (WN1/WN2 HA Pair)
+- name: Configure API VIP & LB (WN1/WN2 HA Pair)
   hosts: api_vip
   become: true
   roles:
-    - api_vip_keepalived
+    - generic_keepalived
+    - generic_haproxy

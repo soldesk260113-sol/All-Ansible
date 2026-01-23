@@ -1,12 +1,17 @@
 ---
-# PC1-SECURE: command-only role (no external collections/modules)
+# roles/secure/tasks/main.yml
+# Refactored to use Ansible Native Modules
 
-- name: Install required packages (firewalld, iproute)
-  command: dnf -y install firewalld iproute
-  changed_when: false
+- name: Install required packages
+  dnf:
+    name: [firewalld, iproute]
+    state: present
 
 - name: Enable and start firewalld
-  command: systemctl enable --now firewalld
+  service:
+    name: firewalld
+    state: started
+    enabled: yes
 
 - name: Persist sysctl settings for forwarding and rp_filter
   copy:
@@ -20,85 +25,90 @@
       net.ipv4.conf.default.rp_filter = 2
       net.ipv4.conf.{{ nic1_interface | default('ens160') }}.rp_filter = 2
       net.ipv4.conf.{{ nic2_interface | default('ens192') }}.rp_filter = 2
+  notify: Apply sysctl
 
-- name: Apply sysctl settings now
-  command: sysctl --system
+# Firewall Zone Assignment
+- name: Ensure public interface is assigned to public zone
+  ansible.posix.firewalld:
+    zone: public
+    interface: "{{ nic1_interface | default('ens160') }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
 
-# 공용(외부) 인터페이스를 Public Zone에 할당 (자동 감지된 nic1_interface 사용)
-- name: Ensure public interface is assigned to public zone (permanent)
-  command: "firewall-cmd --permanent --zone=public --add-interface={{ nic1_interface | default('ens160') }}"
-  register: r_pub_if
-  failed_when: false
-  changed_when: "'success' in (r_pub_if.stdout | lower)"
+- name: Ensure private interface is assigned to trusted zone
+  ansible.posix.firewalld:
+    zone: trusted
+    interface: "{{ nic2_interface | default('ens192') }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
 
-# 사설(내부) 인터페이스를 Trusted Zone에 할당 (자동 감지된 nic2_interface 사용)
-- name: Ensure private interface is assigned to trusted zone (permanent)
-  command: "firewall-cmd --permanent --zone=trusted --add-interface={{ nic2_interface | default('ens192') }}"
-  register: r_tru_if
-  failed_when: false
-  changed_when: "'success' in (r_tru_if.stdout | lower)"
+# Trusted Zone Sources
+- name: Trusted Zone - Allow Internal Network
+  ansible.posix.firewalld:
+    zone: trusted
+    source: 10.2.2.0/24
+    permanent: yes
+    state: enabled
+    immediate: yes
 
-# 중요: 내부망(10.2.2.0/24)을 'Trusted' 존에 추가하여 모든 포트 접근 허용
-- name: Ensure trusted zone allows source 10.2.2.0/24 (permanent)
-  command: firewall-cmd --permanent --zone=trusted --add-source=10.2.2.0/24
-  register: r_tru_src
-  failed_when: false
-  changed_when: "'success' in (r_tru_src.stdout | lower)"
+- name: Trusted Zone - Allow DB Network
+  ansible.posix.firewalld:
+    zone: trusted
+    source: 10.2.3.0/24
+    permanent: yes
+    state: enabled
+    immediate: yes
 
-# 중요: DB망(10.2.3.0/24)도 'Trusted' 존에 추가하여 DB 접근 허용
-- name: Ensure trusted zone allows source 10.2.3.0/24 (permanent - DB Network)
-  command: firewall-cmd --permanent --zone=trusted --add-source=10.2.3.0/24
-  register: r_tru_db
-  failed_when: false
-  changed_when: "'success' in (r_tru_db.stdout | lower)"
+# Public Zone Services & Masquerade
+- name: Enable masquerade on public zone
+  ansible.posix.firewalld:
+    zone: public
+    masquerade: yes
+    permanent: yes
+    state: enabled
+    immediate: yes
 
-- name: Enable masquerade on public zone (permanent)
-  command: firewall-cmd --permanent --zone=public --add-masquerade
-  register: r_masq
-  failed_when: false
-  changed_when: "'success' in (r_masq.stdout | lower)"
+- name: Open HTTP/HTTPS service on public zone
+  ansible.posix.firewalld:
+    zone: public
+    service: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  loop: [http, https]
 
-- name: Open HTTP/HTTPS service on public zone (permanent)
-  command: firewall-cmd --permanent --zone=public --add-service=http --add-service=https
-  register: r_open_web
-  failed_when: false
-  changed_when: "'success' in (r_open_web.stdout | lower)"
-
-- name: Remove wide NodePort forward range (30000-32767) to cp1 (permanent)
-  command: firewall-cmd --permanent --zone=public --remove-forward-port=port=30000-32767:proto=tcp:toaddr=10.2.2.2
-  register: r_rm_np_range
-  failed_when: false
-  changed_when: "'success' in (r_rm_np_range.stdout | lower)"
-
-- name: Add required forward-ports (permanent)
-  command: >
-    firewall-cmd --permanent --zone=public
-    --add-forward-port=port={{ item.port }}:proto=tcp:toport={{ item.toport }}:toaddr={{ item.toaddr }}
+# Port Forwarding
+- name: Add port forwarding rules
+  ansible.posix.firewalld:
+    zone: public
+    port_forward:
+      - port: "{{ item.port }}"
+        proto: tcp
+        toport: "{{ item.toport }}"
+        toaddr: "{{ item.toaddr }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
   loop:
     - { port: 80,    toport: 80,    toaddr: "10.2.1.2" }
     - { port: 443,   toport: 443,   toaddr: "10.2.1.2" }
-
-    - { port: 8080,  toport: 8080,  toaddr: "10.2.2.40" }   # Jenkins
-    - { port: 3001,  toport: 3001,  toaddr: "10.2.2.40" }   # Gitea
-    - { port: 5000,  toport: 5000,  toaddr: "10.2.2.40" }   # Harbor/Registry
-
-    - { port: 3000,  toport: 3000,  toaddr: "10.2.2.50" }   # Grafana
-    - { port: 9090,  toport: 9090,  toaddr: "10.2.2.50" }   # Prometheus
-    - { port: 9093,  toport: 9093,  toaddr: "10.2.2.50" }   # Alertmanager
-
+    
+    - { port: 8080,  toport: 8080,  toaddr: "10.2.2.40" } # Jenkins
+    - { port: 3001,  toport: 3001,  toaddr: "10.2.2.40" } # Gitea
+    - { port: 5000,  toport: 5000,  toaddr: "10.2.2.40" } # Harbor
+    
+    - { port: 3000,  toport: 3000,  toaddr: "10.2.2.50" } # Grafana
+    - { port: 9090,  toport: 9090,  toaddr: "10.2.2.50" } # Prometheus
+    - { port: 9093,  toport: 9093,  toaddr: "10.2.2.50" } # Alertmanager
+    
     - { port: 30080, toport: 30080, toaddr: "10.2.2.8" }
     - { port: 30090, toport: 30090, toaddr: "10.2.2.8" }
-
     
-    # 만약 Ingress VIP (High Availability) 사용한다면 아래 주석 처리된 부분을 사용.
-    # - { port: 32177, toport: 32177, toaddr: "10.2.2.101" }
-    
-    # ArgoCD NodePort 이것 또한 임시 (Fixed: 32177 -> WN3)
+    # ArgoCD NodePort (Fixed: 32177 -> WN3)
     - { port: 32177, toport: 32177, toaddr: "10.2.2.7" }
-  register: r_fwd_ports
-  failed_when: false
-  changed_when: "'success' in (r_fwd_ports.stdout | lower)"
 
-- name: Reload firewalld to apply permanent rules
-  command: firewall-cmd --reload
+    # [Option] Use Ingress VIP (High Availability)
+    # - { port: 32177, toport: 32177, toaddr: "10.2.2.101" }
 

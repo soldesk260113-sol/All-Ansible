@@ -1,0 +1,39 @@
+---
+- name: Install HAProxy
+  package:
+    name: haproxy
+    state: present
+
+- name: Enable sticky bit for VIP binding (sysctl)
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_nonlocal_bind
+    value: '1'
+    state: present
+    sysctl_file: /etc/sysctl.d/haproxy-bind.conf
+    reload: yes
+
+- name: Deploy HAProxy Configuration
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: '0644'
+    validate: haproxy -c -f %s
+  notify: Restart HAProxy
+
+- name: Allow HAProxy Ports in Firewall
+  ansible.posix.firewalld:
+    port: "{{ item.bind | regex_replace('^.*:', '') }}/tcp"
+    permanent: yes
+    immediate: yes
+    state: enabled
+  loop: "{{ haproxy_frontends }}"
+  when: firewall_enabled | default(true)
+  ignore_errors: yes
+
+- name: Enable and Start HAProxy
+  service:
+    name: haproxy
+    state: started
+    enabled: yes

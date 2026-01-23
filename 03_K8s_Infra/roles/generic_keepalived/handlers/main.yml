@@ -1,5 +1,5 @@
 ---
-- name: Restart Keepalived
+- name: Restart keepalived
   service:
     name: keepalived
     state: restarted

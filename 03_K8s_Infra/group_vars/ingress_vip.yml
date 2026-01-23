@@ -1,0 +1,29 @@
+---
+haproxy_frontends:
+  - name: ingress_http
+    bind: "*:80"
+    backend: ingress_http_backend
+  - name: ingress_https
+    bind: "*:443"
+    backend: ingress_https_backend
+
+haproxy_backends:
+  - name: ingress_http_backend
+    balance: roundrobin
+    servers:
+      - { name: wan1, address: "10.2.2.5:30080" }
+      - { name: wan2, address: "10.2.2.6:30080" }
+      - { name: wan3, address: "10.2.2.7:30080" }
+      - { name: wan4, address: "10.2.2.8:30080" }
+      - { name: wan5, address: "10.2.2.9:30080" }
+      - { name: wan6, address: "10.2.2.10:30080" }
+
+  - name: ingress_https_backend
+    balance: roundrobin
+    servers:
+      - { name: wan1, address: "10.2.2.5:30443" }
+      - { name: wan2, address: "10.2.2.6:30443" }
+      - { name: wan3, address: "10.2.2.7:30443" }
+      - { name: wan4, address: "10.2.2.8:30443" }
+      - { name: wan5, address: "10.2.2.9:30443" }
+      - { name: wan6, address: "10.2.2.10:30443" }

@@ -1,7 +1,0 @@
----
-- name: Configure Ingress LB (HAProxy + Keepalived Cluster)
-  hosts: ingress_lb
-  become: true
-  roles:
-    - ingress_lb_haproxy
-    - ingress_lb_keepalived

@@ -1,0 +1,13 @@
+---
+haproxy_frontends:
+  - name: k8s_api
+    bind: "*:6443"
+    backend: k8s_api_backend
+
+haproxy_backends:
+  - name: k8s_api_backend
+    balance: roundrobin
+    servers:
+      - { name: cp1, address: "10.2.2.2:6443" }
+      - { name: cp2, address: "10.2.2.3:6443" }
+      - { name: cp3, address: "10.2.2.4:6443" }

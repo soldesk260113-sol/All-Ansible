@@ -1,2 +1,5 @@
 ---
-# handlers file for roles/dns
+- name: Restart named
+  service:
+    name: named
+    state: restarted

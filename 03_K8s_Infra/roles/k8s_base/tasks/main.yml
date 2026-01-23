@@ -46,18 +46,7 @@
     state: permissive
   ignore_errors: yes
 
-- name: 1-7. 호스트 이름 설정 (Inventory 이름과 동기화)
-  ansible.builtin.hostname:
-    name: "{{ inventory_hostname }}"
-
-- name: 1-8. /etc/hosts 파일 구성
-  ansible.builtin.lineinfile:
-    path: /etc/hosts
-    line: "{{ hostvars[item].ansible_host }} {{ item }} {{ item | lower | replace('_', '-') }}"
-    regexp: "^{{ hostvars[item].ansible_host }}"
-    state: present
-  loop: "{{ groups['K8S_Cluster'] }}"
-  run_once: false
+# (1-7, 1-8 Hostname & Hosts file setup removed - Handled by 00_Infra_Bootstrap)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. Container Runtime (containerd)

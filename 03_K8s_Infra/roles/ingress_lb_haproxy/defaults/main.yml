@@ -1,7 +1,0 @@
----
-haproxy_frontend_port_http: 80
-haproxy_frontend_port_https: 443
-haproxy_backend_servers: []
-# Example format for haproxy_backend_servers:
-# - name: worker1
-#   address: 10.0.0.1:30080
