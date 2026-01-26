@@ -1,0 +1,5 @@
+<IfModule security2_module>
+  # Demo rule: force 403 when ?test=1
+  SecRule ARGS:test "@streq 1" \
+    "id:1000001,phase:2,deny,status:403,log,msg:'DEMO BLOCK: test=1 blocked by WAF'"
+</IfModule>

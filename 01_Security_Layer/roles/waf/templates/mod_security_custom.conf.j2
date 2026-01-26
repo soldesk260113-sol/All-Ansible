@@ -1,0 +1,23 @@
+<IfModule security2_module>
+  # Engine mode: DetectionOnly or On
+  SecRuleEngine {{ waf_rule_engine }}
+
+  # Audit (optional) - default OFF to avoid 환경별 이슈
+  {% if waf_audit_enable | bool %}
+  SecAuditEngine On
+  SecAuditLogType Serial
+  SecAuditLog {{ waf_audit_log }}
+  SecAuditLogParts ABIJDEFHZ
+  {% else %}
+  SecAuditEngine Off
+  {% endif %}
+
+  # Performance safety
+  SecPcreMatchLimit 200000
+  SecPcreMatchLimitRecursion 200000
+
+  # CRS load (ONLY ONCE)
+  Include {{ crs_dir }}/crs-setup.conf
+  Include {{ crs_rules_enabled }}/*.conf
+
+</IfModule>

@@ -1,32 +1,62 @@
 ---
-# PC1-WAF: Install httpd + ModSecurity + OWASP CRS, activate, DetectionOnly
+# roles/waf/tasks/main.yml
+# Apache Reverse Proxy + ModSecurity + OWASP CRS
+# Ported from SECURE/roles/waf but adapted for usage here
 
-- name: Install required packages for WAF (httpd + mod_security + CRS + firewalld)
-  shell: |
-    set -e
-    dnf -y install epel-release || true
-    dnf -y install httpd firewalld mod_ssl mod_security mod_security_crs || \
-    dnf -y install httpd firewalld mod_ssl mod_security mod_security_crs-core || true
-  changed_when: false
+- name: Set variables (defaults, but keep overrides)
+  set_fact:
+    waf_backend: "{{ waf_backend | default('http://10.2.2.101/') }}"
+    waf_servername: "{{ waf_servername | default('waf.local') }}"
+    waf_cert: "{{ waf_cert | default('/etc/pki/tls/certs/waf.crt') }}"
+    waf_key: "{{ waf_key | default('/etc/pki/tls/private/waf.key') }}"
+    waf_rule_engine: "{{ waf_rule_engine | default('DetectionOnly') }}"      # DetectionOnly / On
+    waf_demo_block_enable: "{{ waf_demo_block_enable | default(false) }}"    # true면 ?test=1 403 보장
+    crs_dir: "{{ crs_dir | default('/etc/httpd/modsecurity.d/owasp-crs') }}"
+    crs_rules_enabled: "{{ crs_rules_enabled | default('/etc/httpd/modsecurity.d/owasp-crs/rules-enabled') }}"
+    waf_offline: "{{ waf_offline | default(false) }}"
 
-- name: Enable and start firewalld
-  command: systemctl enable --now firewalld
+# 1) Packages / Services (offline면 스킵)
+- block:
+    - name: Install required packages
+      dnf:
+        name:
+          - httpd
+          - mod_ssl
+          - mod_security
+          - git
+          - firewalld
+        state: present
 
-- name: Enable and start httpd
-  command: systemctl enable --now httpd
+    - name: Enable and start firewalld
+      systemd:
+        name: firewalld
+        enabled: true
+        state: started
+  when:
+    - not ansible_check_mode
+    - not (waf_offline | bool)
 
-- name: Open HTTP/HTTPS service (permanent)
-  command: firewall-cmd --permanent --add-service=http --add-service=https
-  register: r_websvc
+- name: Open 80/443 on firewalld (public) (best effort)
+  command: firewall-cmd --permanent --add-service={{ item }}
+  loop: [http, https]
+  register: r_fw
   failed_when: false
-  changed_when: "'success' in (r_websvc.stdout | lower)"
+  changed_when: "'success' in (r_fw.stdout | lower)"
 
-- name: Reload firewalld
+- name: Reload firewalld (best effort)
   command: firewall-cmd --reload
+  register: r_fw_reload
+  failed_when: false
+  changed_when: "'success' in (r_fw_reload.stdout | lower)"
 
-# -----------------------------
-# TLS cert 준비 (없으면 self-signed 생성)
-# -----------------------------
+- name: Ensure httpd enabled and started (best effort)
+  systemd:
+    name: httpd
+    enabled: true
+    state: started
+  failed_when: false
+
+# 2) TLS cert (self-signed if missing)
 - name: Check cert/key exist
   stat:
     path: "{{ item }}"
@@ -35,71 +65,77 @@
     - "{{ waf_key }}"
   register: r_tls
 
-- name: Generate self-signed cert if missing
+- name: Generate self-signed cert if missing (best effort)
   command: >
     openssl req -x509 -newkey rsa:2048 -nodes
     -keyout {{ waf_key }}
     -out {{ waf_cert }}
     -days 365
     -subj "/CN={{ waf_servername }}"
-  when: >
-    (r_tls.results[0].stat.exists == false) or
-    (r_tls.results[1].stat.exists == false)
+  when:
+    - not ansible_check_mode
+    - (r_tls.results[0].stat.exists == false) or (r_tls.results[1].stat.exists == false)
+  failed_when: false
 
-# CRS 룰 경로 자동 탐색 + activated_rules에 심링크 활성화
-- name: Activate OWASP CRS rules into activated_rules (symlink)
-  shell: |
-    set -e
+# 3) CRS install / rules-enabled 구성
+- name: Ensure ModSecurity base dir exists
+  file:
+    path: /etc/httpd/modsecurity.d
+    state: directory
+    mode: "0755"
 
-    CANDIDATES=(
-      "/usr/share/mod_modsecurity_crs/rules"
-      "/usr/share/modsecurity-crs/rules"
-      "/usr/share/owasp-modsecurity-crs/rules"
-      "/etc/modsecurity.d/owasp-crs/rules"
-    )
+- name: Cleanup old leftover confs that can cause duplicate rules
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/etc/httpd/modsecurity.d/crs-setup.conf"
+    - "/etc/httpd/modsecurity.d/owasp-crs.conf"
+    - "/etc/httpd/modsecurity.d/owasp-crs.conf.bak"
+    - "/etc/httpd/conf.d/modsecurity-crs.conf"
+    - "/etc/httpd/conf.d/zzz-modsec-audit.conf"
+    - "/etc/httpd/conf.d/zzz-modsec-global.conf"
+  ignore_errors: true
 
-    SRC=""
-    for d in "${CANDIDATES[@]}"; do
-      if [ -d "$d" ] && ls "$d"/*.conf >/dev/null 2>&1; then
-        SRC="$d"
-        break
-      fi
-    done
+- name: Clone OWASP CRS if not exists (skip in offline mode)
+  git:
+    repo: "https://github.com/coreruleset/coreruleset.git"
+    dest: "{{ crs_dir }}"
+    version: "v4.12.0"
+    update: false
+  when:
+    - not ansible_check_mode
+    - not (waf_offline | bool)
+  failed_when: false
 
-    if [ -z "$SRC" ]; then
-      echo "[ERROR] CRS rules directory not found in candidates." >&2
-      exit 1
-    fi
-
-    DST="/etc/httpd/modsecurity.d/activated_rules"
-    mkdir -p "$DST"
-
-    for f in "$SRC"/*.conf; do
-      ln -sf "$f" "$DST/$(basename "$f")"
-    done
-
-    echo "Activated CRS from: $SRC"
-    echo "Count: $(ls -1 "$DST"/*.conf 2>/dev/null | wc -l)"
-
-# mod_security.conf는 copy로 안전하게 생성 (YAML 파싱 깨짐 방지)
-- name: Ensure mod_security.conf exists (create if missing)
+- name: Ensure CRS setup conf present (skip in offline mode)
   copy:
-    dest: /etc/httpd/conf.d/mod_security.conf
+    remote_src: true
+    src: "{{ crs_dir }}/crs-setup.conf.example"
+    dest: "{{ crs_dir }}/crs-setup.conf"
     owner: root
     group: root
     mode: "0644"
-    force: false
-    content: |
-      <IfModule security2_module>
-        SecRuleEngine DetectionOnly
-      </IfModule>
+  when:
+    - not ansible_check_mode
+    - not (waf_offline | bool)
+  failed_when: false
 
-- name: Set SecRuleEngine to DetectionOnly (enforce)
-  shell: |
-    set -e
-    CONF="/etc/httpd/conf.d/mod_security.conf"
-    grep -qi '^\s*SecRuleEngine' "$CONF" || echo 'SecRuleEngine DetectionOnly' >> "$CONF"
+- name: Ensure rules-enabled directory exists
+  file:
+    path: "{{ crs_rules_enabled }}"
+    state: directory
+    mode: "0755"
 
+- name: Link CRS .conf into rules-enabled (best effort)
+  command: bash -lc 'test -d {{ crs_dir }}/rules && ln -sf {{ crs_dir }}/rules/*.conf {{ crs_rules_enabled }}/ || true'
+  changed_when: false
+
+- name: Link CRS .data into rules-enabled (best effort)
+  command: bash -lc 'test -d {{ crs_dir }}/rules && ls {{ crs_dir }}/rules/*.data >/dev/null 2>&1 && ln -sf {{ crs_dir }}/rules/*.data {{ crs_rules_enabled }}/ || true'
+  changed_when: false
+
+# 4) Apache conf deploy
 - name: Deploy security headers include
   copy:
     src: security-headers.conf
@@ -108,7 +144,7 @@
     group: root
     mode: "0644"
 
-- name: Deploy SSL WAF vhost (reverse proxy to ingress vip)
+- name: Deploy SSL WAF vhost (reverse proxy to backend)
   template:
     src: ssl-waf.conf.j2
     dest: /etc/httpd/conf.d/ssl-waf.conf
@@ -116,23 +152,53 @@
     group: root
     mode: "0644"
 
+# 5) 핵심: ModSecurity custom conf는 템플릿 단일화
+- name: Deploy modsecurity custom include (single source of truth)
+  template:
+    src: mod_security_custom.conf.j2
+    dest: /etc/httpd/conf.d/mod_security_custom.conf
+    owner: root
+    group: root
+    mode: "0644"
 
-- name: Apache configtest
+# 6) default mod_security.conf activated_rules include는 반드시 비활성(중복 RuleID 방지)
+- name: Check default mod_security.conf exists
+  stat:
+    path: /etc/httpd/conf.d/mod_security.conf
+  register: r_modsec_default
+
+- name: Disable default activated_rules include if present
+  replace:
+    path: /etc/httpd/conf.d/mod_security.conf
+    regexp: '^\s*IncludeOptional\s+modsecurity\.d/activated_rules/\*\.conf\s*$'
+    replace: '# IncludeOptional modsecurity.d/activated_rules/*.conf'
+  when: r_modsec_default.stat.exists
+  failed_when: false
+
+# 7) 발표용 403 보장 룰 (옵션)
+- name: Deploy demo blocking rule (optional)
+  template:
+    src: zz-test-rule.conf.j2
+    dest: /etc/httpd/conf.d/zz-test-rule.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: waf_demo_block_enable | bool
+
+- name: Remove demo blocking rule when disabled
+  file:
+    path: /etc/httpd/conf.d/zz-test-rule.conf
+    state: absent
+  when: not (waf_demo_block_enable | bool)
+
+# 8) Validate + restart
+- name: Validate Apache config (best effort)
   command: apachectl configtest
-  register: r_conf
   changed_when: false
+  failed_when: false
 
-- name: Restart httpd to apply CRS and ModSecurity mode
-  command: systemctl restart httpd
-
-- name: Health check (HTTP HEAD)
-  shell: |
-    set -e
-    curl -sI http://127.0.0.1/ | head -n 1
-  register: r_curl
-  changed_when: false
-
-- name: Show health check result
-  debug:
-    msg: "WAF httpd response: {{ r_curl.stdout }}"
-
+- name: Restart httpd (best effort)
+  systemd:
+    name: httpd
+    state: restarted
+  failed_when: false

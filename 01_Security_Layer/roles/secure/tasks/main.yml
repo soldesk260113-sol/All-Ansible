@@ -1,6 +1,6 @@
 ---
 # roles/secure/tasks/main.yml
-# Refactored to use Ansible Native Modules
+# Refactored to use Ansible Native Modules + Variables + Cleanup
 
 - name: Install required packages
   dnf:
@@ -21,17 +21,17 @@
     mode: "0644"
     content: |
       net.ipv4.ip_forward = 1
-      net.ipv4.conf.all.rp_filter = 2
-      net.ipv4.conf.default.rp_filter = 2
-      net.ipv4.conf.{{ nic1_interface | default('ens160') }}.rp_filter = 2
-      net.ipv4.conf.{{ nic2_interface | default('ens192') }}.rp_filter = 2
+      net.ipv4.conf.all.rp_filter = {{ secure_rp_filter }}
+      net.ipv4.conf.default.rp_filter = {{ secure_rp_filter }}
+      net.ipv4.conf.{{ secure_public_if }}.rp_filter = {{ secure_rp_filter }}
+      net.ipv4.conf.{{ secure_trusted_if }}.rp_filter = {{ secure_rp_filter }}
   notify: Apply sysctl
 
 # Firewall Zone Assignment
 - name: Ensure public interface is assigned to public zone
   ansible.posix.firewalld:
     zone: public
-    interface: "{{ nic1_interface | default('ens160') }}"
+    interface: "{{ secure_public_if }}"
     permanent: yes
     state: enabled
     immediate: yes
@@ -39,27 +39,20 @@
 - name: Ensure private interface is assigned to trusted zone
   ansible.posix.firewalld:
     zone: trusted
-    interface: "{{ nic2_interface | default('ens192') }}"
+    interface: "{{ secure_trusted_if }}"
     permanent: yes
     state: enabled
     immediate: yes
 
 # Trusted Zone Sources
-- name: Trusted Zone - Allow Internal Network
+- name: Trusted Zone - Allow Internal Networks
   ansible.posix.firewalld:
     zone: trusted
-    source: 10.2.2.0/24
+    source: "{{ item }}"
     permanent: yes
     state: enabled
     immediate: yes
-
-- name: Trusted Zone - Allow DB Network
-  ansible.posix.firewalld:
-    zone: trusted
-    source: 10.2.3.0/24
-    permanent: yes
-    state: enabled
-    immediate: yes
+  loop: "{{ secure_trusted_src }}"
 
 # Public Zone Services & Masquerade
 - name: Enable masquerade on public zone
@@ -79,6 +72,17 @@
     immediate: yes
   loop: [http, https]
 
+# Cleanup Old Rules (Robustness)
+- name: Remove wide NodePort forward range (30000-32767) if exists
+  command: firewall-cmd --permanent --zone=public --remove-forward-port=port=30000-32767:proto=tcp:toaddr=10.2.2.2
+  register: r_rm_np_range
+  failed_when: false
+  changed_when: "'success' in (r_rm_np_range.stdout | lower)"
+
+- name: Reload firewalld if cleanup performed
+  command: firewall-cmd --reload
+  when: r_rm_np_range.changed
+
 # Port Forwarding
 - name: Add port forwarding rules
   ansible.posix.firewalld:
@@ -91,24 +95,4 @@
     permanent: yes
     state: enabled
     immediate: yes
-  loop:
-    - { port: 80,    toport: 80,    toaddr: "10.2.1.2" }
-    - { port: 443,   toport: 443,   toaddr: "10.2.1.2" }
-    
-    - { port: 8080,  toport: 8080,  toaddr: "10.2.2.40" } # Jenkins
-    - { port: 3001,  toport: 3001,  toaddr: "10.2.2.40" } # Gitea
-    - { port: 5000,  toport: 5000,  toaddr: "10.2.2.40" } # Harbor
-    
-    - { port: 3000,  toport: 3000,  toaddr: "10.2.2.50" } # Grafana
-    - { port: 9090,  toport: 9090,  toaddr: "10.2.2.50" } # Prometheus
-    - { port: 9093,  toport: 9093,  toaddr: "10.2.2.50" } # Alertmanager
-    
-    - { port: 30080, toport: 30080, toaddr: "10.2.2.8" }
-    - { port: 30090, toport: 30090, toaddr: "10.2.2.8" }
-    
-    # ArgoCD NodePort (Fixed: 32177 -> WN3)
-    - { port: 32177, toport: 32177, toaddr: "10.2.2.7" }
-
-    # [Option] Use Ingress VIP (High Availability)
-    # - { port: 32177, toport: 32177, toaddr: "10.2.2.101" }
-
+  loop: "{{ secure_forward_ports }}"

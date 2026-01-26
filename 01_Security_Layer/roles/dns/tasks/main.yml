@@ -1,6 +1,6 @@
 ---
 # roles/dns/tasks/main.yml
-# Refactored to use Ansible Native Modules
+# Refactored to use Ansible Native Modules + Validation
 
 - name: Install bind server packages
   dnf:
@@ -63,6 +63,7 @@
   command: restorecon -Rv /var/named
   changed_when: false
 
+# Added Validation (from SECURE)
 - name: Validate named.conf
   command: named-checkconf /etc/named.conf
   changed_when: false

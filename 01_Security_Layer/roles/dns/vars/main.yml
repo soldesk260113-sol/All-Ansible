@@ -25,7 +25,7 @@ dns_zones:
   # -----------------------------------------
   - zone: "k8s.internal"
     records:
-      - { name: "k8s-api", ip: "10.2.2.100" }
+      - { name: "k8s-vip", ip: "10.2.2.100" }
 
       - { name: "cp1", ip: "10.2.2.2" }
       - { name: "cp2", ip: "10.2.2.3" }
@@ -63,7 +63,7 @@ dns_zones:
   # -----------------------------------------
   - zone: "svc.internal"
     records:
-      - { name: "ingress", ip: "10.2.1.2" }
+      - { name: "ingress", ip: "10.2.2.101" }
 
   # -----------------------------------------
   # Ops / Management (PC5)

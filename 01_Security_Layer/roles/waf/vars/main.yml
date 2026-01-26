@@ -1,2 +1,3 @@
 ---
 # vars file for roles/waf
+# Most defaults are handled in tasks/main.yml via set_fact to allow inventory overrides easily

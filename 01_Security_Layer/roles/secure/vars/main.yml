@@ -1,2 +1,32 @@
 ---
 # vars file for roles/secure
+
+secure_public_if: "{{ nic1_interface | default('ens160') }}"
+secure_trusted_if: "{{ nic2_interface | default('ens192') }}"
+secure_trusted_src:
+  - "10.2.2.0/24"
+  - "10.2.3.0/24"
+
+secure_rp_filter: 2
+
+secure_forward_ports:
+  # WAF / Edge
+  - { port: 80,    toport: 80,    toaddr: "10.2.1.2" }
+  - { port: 443,   toport: 443,   toaddr: "10.2.1.2" }
+
+  # Ops / CICD
+  - { port: 8080,  toport: 8080,  toaddr: "10.2.2.40" } # Jenkins
+  - { port: 3001,  toport: 3001,  toaddr: "10.2.2.40" } # Gitea
+  - { port: 5000,  toport: 5000,  toaddr: "10.2.2.40" } # Harbor
+
+  # Monitoring
+  - { port: 3000,  toport: 3000,  toaddr: "10.2.2.50" } # Grafana
+  - { port: 9090,  toport: 9090,  toaddr: "10.2.2.50" } # Prometheus
+  - { port: 9093,  toport: 9093,  toaddr: "10.2.2.50" } # Alertmanager
+
+  # K8s NodePorts
+  - { port: 30080, toport: 30080, toaddr: "10.2.2.8" }
+  - { port: 30090, toport: 30090, toaddr: "10.2.2.8" }
+
+  # ArgoCD (Updated Port)
+  - { port: 32177, toport: 32177, toaddr: "10.2.2.7" }
